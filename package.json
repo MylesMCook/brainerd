@@ -1,6 +1,6 @@
 {
   "name": "@mmcook/pi-brainmaxx",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A project brain for Pi: repo-local memory, reflection, and session-history rumination",
   "type": "module",
   "author": "Myles Cook <mylesmcook@gmail.com>",
