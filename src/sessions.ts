@@ -37,6 +37,7 @@ type SessionMessageEntry = {
 type SessionEntry = SessionHeader | SessionMessageEntry | { type: string };
 
 const isMessageEntry = (entry: SessionEntry): entry is SessionMessageEntry => entry.type === "message";
+const MAX_SESSION_HEADER_BYTES = 64 * 1024;
 
 const exists = async (target: string): Promise<boolean> => {
   try {
@@ -81,6 +82,7 @@ const readFirstLine = async (file: string): Promise<string> => {
   const handle = await fs.open(file, "r");
   const chunks: Buffer[] = [];
   const buffer = Buffer.alloc(1024);
+  let totalBytes = 0;
 
   try {
     while (true) {
@@ -90,6 +92,10 @@ const readFirstLine = async (file: string): Promise<string> => {
       }
 
       const chunk = Buffer.from(buffer.subarray(0, bytesRead));
+      totalBytes += chunk.length;
+      if (totalBytes > MAX_SESSION_HEADER_BYTES) {
+        throw new Error(`Malformed Pi session file ${file}: header exceeds ${MAX_SESSION_HEADER_BYTES} bytes`);
+      }
       const newlineIndex = chunk.indexOf(10);
       if (newlineIndex >= 0) {
         chunks.push(chunk.subarray(0, newlineIndex));

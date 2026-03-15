@@ -130,3 +130,26 @@ test("collectRepoSessions skips malformed session bodies after a valid header", 
   assert.match(result.sessions[0]?.transcript ?? "", /Recovered/);
   assert.match(result.warnings[0] ?? "", /Malformed Pi session JSON/);
 });
+
+test("collectRepoSessions rejects oversized session headers clearly", async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-sessions-"));
+  const projectRoot = path.join(tempRoot, "repo");
+  const sessionsRoot = path.join(tempRoot, "sessions");
+  const directory = path.join(sessionsRoot, `--${projectRoot.replaceAll("/", "-")}--`);
+
+  await fs.mkdir(projectRoot, { recursive: true });
+  await fs.writeFile(path.join(projectRoot, ".git"), "gitdir: fake\n");
+  await fs.mkdir(directory, { recursive: true });
+  await fs.writeFile(
+    path.join(directory, "huge-header.jsonl"),
+    `{\"type\":\"session\",\"version\":3,\"cwd\":\"${"x".repeat(70_000)}`,
+  );
+
+  const result = await collectRepoSessions({
+    cwd: projectRoot,
+    sessionsRoot,
+  });
+
+  assert.equal(result.sessions.length, 0);
+  assert.match(result.warnings[0] ?? "", /header exceeds 65536 bytes/);
+});

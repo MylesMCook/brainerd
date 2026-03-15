@@ -162,6 +162,23 @@ const withBrainLock = async <T>(projectRoot: string, work: () => Promise<T>): Pr
   throw new Error(`Timed out waiting for ${lockPath}`);
 };
 
+const waitForUnlocked = async (projectRoot: string): Promise<void> => {
+  const lockPath = path.join(projectRoot, BRAIN_DIR, LOCKFILE_NAME);
+
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    if (!(await exists(lockPath))) {
+      return;
+    }
+    if (await staleLock(lockPath)) {
+      await fs.rm(lockPath, { force: true });
+      return;
+    }
+    await sleep(100);
+  }
+
+  throw new Error(`Timed out waiting for ${lockPath}`);
+};
+
 export const hasBrainEntrypoints = async (projectRoot: string): Promise<boolean> => {
   return (await exists(path.join(projectRoot, INDEX_ENTRYPOINT))) && (await exists(path.join(projectRoot, PRINCIPLES_ENTRYPOINT)));
 };
@@ -422,6 +439,7 @@ export const syncOwnedEntryPoints = async (projectRoot: string): Promise<BrainSy
 };
 
 export const readEntrypoints = async (projectRoot: string): Promise<{ index: string; principles: string } | null> => {
+  await waitForUnlocked(projectRoot);
   const index = await readFileIfPresent(path.join(projectRoot, INDEX_ENTRYPOINT));
   const principles = await readFileIfPresent(path.join(projectRoot, PRINCIPLES_ENTRYPOINT));
   if (!index || !principles) {
