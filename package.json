@@ -5,6 +5,14 @@
   "type": "module",
   "author": "Myles Cook <mylesmcook@gmail.com>",
   "license": "MIT",
+  "homepage": "https://github.com/MylesMCook/pi-brainmaxx",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MylesMCook/pi-brainmaxx.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MylesMCook/pi-brainmaxx/issues"
+  },
   "keywords": [
     "pi-package",
     "pi",
@@ -28,6 +36,7 @@
     "extensions",
     "skills",
     "src",
+    "LICENSE",
     "README.md",
     "THIRD-PARTY-NOTICES.md"
   ],

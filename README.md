@@ -8,10 +8,12 @@ small, inspectable `brain/` that Pi reads on normal turns, extends with
 
 ## In 2 minutes
 
-Today, install from a local path. Public registry install is not live yet:
+Public registry install is not live yet. Today, use a local path or the public
+GitHub repo:
 
 ```bash
 pi install /absolute/path/to/pi-brainmaxx
+pi install git:https://github.com/MylesMCook/pi-brainmaxx
 ```
 
 Then, inside a repo:
@@ -39,6 +41,13 @@ What to expect:
 ```bash
 pi -p "/brain-init"
 pi -p "/brain-init --apply-bootstrap"
+```
+
+If you want the package attached to project settings instead of your global Pi
+agent state, use:
+
+```bash
+pi install -l git:https://github.com/MylesMCook/pi-brainmaxx
 ```
 
 ## Why this exists
@@ -105,6 +114,7 @@ the generated indexes themselves.
 
 - Pi-only, not a generic agent-memory layer
 - Repo-local, not a hosted memory service
+- GitHub install is live; npm registry install is not
 - `ruminate` depends on Pi's current session format
 - if Pi changes that format, `ruminate` reports the mismatch and needs an update
 
