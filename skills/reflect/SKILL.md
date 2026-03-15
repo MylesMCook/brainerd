@@ -32,10 +32,14 @@ Do not store:
 5. Otherwise create one focused note under `brain/notes/<kebab-case-topic>.md`.
 6. Keep note bodies concise and specific.
 7. After applying approved changes, call `brainmaxx_sync_entrypoints`.
-8. End with a short summary of what changed.
+8. End with a visible summary of what changed.
 
 ## Output Rules
 
-- If there is nothing durable to preserve, say so and stop.
+- If there is nothing durable to preserve, say so explicitly and stop.
 - The user invoking `/reflect` is enough permission to apply the changes unless the correct target is genuinely ambiguous.
 - Make the smallest useful brain change, not a brain dump.
+- Always end with a visible summary, even when no changes were needed. State:
+  - whether changes were made or not
+  - which files were changed (if any)
+  - one-sentence rationale

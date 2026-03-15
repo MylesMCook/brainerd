@@ -66,8 +66,9 @@ Proof:
 - `/reflect`
 - `/ruminate`
 - plain markdown in the repo
-- `pi -p` support
+- `pi -p` support for all three paths
 - repo-scoped Pi session history
+- tested: all three exit cleanly with visible output in both interactive and `pi -p`
 
 ## Message Hierarchy
 
@@ -116,9 +117,12 @@ What happens to session history?
   files
 - `/brain-init --apply-bootstrap` creates one operations note when it is missing
 - Pi reads `brain/index.md` and `brain/principles.md` on normal turns
-- `/reflect` is a native Pi skill command
-- `/ruminate` is a native Pi skill command
+- `/reflect` is a native Pi skill; it prints a summary of what changed
+- `/ruminate` is a native Pi skill; it presents findings first and writes only
+  after confirmation
 - both interactive Pi and `pi -p` are supported
+- `pi -p "/reflect"` may write and prints a visible summary
+- `pi -p "/ruminate"` is preview-only without confirmation in the conversation
 - operational bootstrap reads only `AGENTS.md`, `README.md`, and `MEMORY.md`
 
 ## Public Surface Snippets

@@ -25,16 +25,21 @@ parsing raw session JSONL files.
    - missed durable project knowledge
    - recurring failure patterns
 5. Present a concise findings summary first.
-6. Stop and wait for explicit confirmation before writing anything.
-7. After confirmation, make the smallest durable brain updates needed.
-8. Prefer updating an existing principle file when the pattern is really a principle or preference.
-9. Otherwise create one focused note under `brain/notes/<kebab-case-topic>.md`.
-10. After applying approved changes, call `brainmaxx_sync_entrypoints`.
-11. End with a short summary of what changed.
+6. Only write after explicit user confirmation in the current conversation.
+7. If explicit confirmation is unavailable or cannot be obtained, do not write
+   any brain changes. Present findings as preview-only and stop.
+8. After confirmation, make the smallest durable brain updates needed.
+9. Prefer updating an existing principle file when the pattern is really a principle or preference.
+10. Otherwise create one focused note under `brain/notes/<kebab-case-topic>.md`.
+11. After applying approved changes, call `brainmaxx_sync_entrypoints`.
+12. End with a visible summary of what changed or what was previewed.
 
 ## Output Rules
 
-- Never write brain changes before explicit confirmation.
+- Invoking `/ruminate` is not permission to write. Explicit follow-up
+  confirmation is required before any brain changes.
 - If the session tool reports malformed or unsupported Pi session data, surface that clearly and stop.
 - If there are no durable findings, say so and stop.
 - Do not dump raw transcript excerpts into the brain. Distill them into durable knowledge.
+- Always end with a visible summary, even in preview-only runs.
+- If no write occurred, say explicitly: no brain changes were written.

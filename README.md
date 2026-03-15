@@ -30,9 +30,11 @@ What to expect:
   files
 - `/brain-init --apply-bootstrap` writes one operations note when the repo does
   not already have one
-- `/reflect` captures durable learnings from the current Pi session
+- `/reflect` captures durable learnings from the current Pi session and prints a
+  summary of what was written, which files changed, and why
 - `/ruminate` mines older Pi sessions for repeated corrections, preferences, and
-  missed durable knowledge
+  missed durable knowledge; it presents findings first and only writes to
+  `brain/` after you confirm in the current conversation
 - the included extension reads `brain/index.md` and `brain/principles.md` on
   normal turns
 
@@ -41,6 +43,8 @@ What to expect:
 ```bash
 pi -p "/brain-init"
 pi -p "/brain-init --apply-bootstrap"
+pi -p "/reflect"           # may write, prints summary
+pi -p "/ruminate"          # preview-only, no writes without confirmation
 ```
 
 If you want the package attached to project settings instead of your global Pi
@@ -79,8 +83,10 @@ mining learnings over time.
 
 1. `/brain-init` creates the starter brain.
 2. Pi reads `brain/index.md` and `brain/principles.md` on normal turns.
-3. `/reflect` writes durable learnings from the current session.
-4. `/ruminate` mines repo-scoped Pi history when enough sessions exist.
+3. `/reflect` writes durable learnings from the current session and prints a
+   summary of what changed.
+4. `/ruminate` mines repo-scoped Pi history when enough sessions exist. It shows
+   findings first; writes only happen after you confirm in the same conversation.
 
 This package stays intentionally small. It does not try to become another
 orchestrator, another dashboard, or a generic memory platform.
@@ -120,6 +126,9 @@ the generated indexes themselves.
 - Repo-local, not a hosted memory service
 - `ruminate` depends on Pi's current session format
 - if Pi changes that format, `ruminate` reports the mismatch and needs an update
+- skill behavior in `pi -p` (including `/reflect` and `/ruminate`) depends on
+  LLM compliance with skill instructions; skills are markdown-guided, not
+  programmatic commands, so results may vary across models and versions
 
 Operational bootstrap writes exactly one note:
 
