@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brainmaxx Reflect"
+  short_description: "Write durable learnings into the repo brain"
+  default_prompt: "Use $brainmaxx-reflect to capture durable knowledge from the current Codex conversation into the repo-local brain."

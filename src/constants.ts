@@ -1,4 +1,4 @@
-export const PACKAGE_VERSION = "0.2.0";
+export const PACKAGE_VERSION = "0.3.0";
 export const SUPPORTED_SESSION_VERSIONS = [2, 3] as const;
 export const BRAIN_DIR = "brain";
 export const BRAIN_VERSION_FILE = "brain/.brainmaxx-version";
@@ -7,3 +7,4 @@ export const PRINCIPLES_ENTRYPOINT = "brain/principles.md";
 export const NOTES_DIR = "brain/notes";
 export const DEFAULT_INJECTION_MAX_BYTES = 12_000;
 export const DEFAULT_INJECTION_MAX_LINES = 220;
+export const DEFAULT_CODEX_MIN_RUMINATION_SESSIONS = 5;

@@ -16,6 +16,7 @@
   "keywords": [
     "pi-package",
     "pi",
+    "codex",
     "project-brain",
     "repo-memory",
     "pi-memory"
@@ -33,6 +34,7 @@
   },
   "files": [
     "brain",
+    "codex-skills",
     "extensions",
     "skills",
     "src",

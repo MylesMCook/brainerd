@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { NOTES_DIR } from "./constants.js";
+import { stripCodexManagedBlock } from "./codex-agents.js";
 import { exists, readFileIfPresent } from "./fs-helpers.js";
 import { toPortablePath } from "./project-root.js";
 import { writeNoteIfMissing } from "./brain.js";
@@ -354,8 +355,12 @@ export const planOperationalBootstrap = async (projectRoot: string): Promise<Ope
 
   const sourceFiles: Array<{ sourceFile: string; content: string }> = [];
   for (const sourceFile of SOURCE_DOCS) {
-    const content = await readFileIfPresent(path.join(projectRoot, sourceFile));
-    if (content) {
+    const raw = await readFileIfPresent(path.join(projectRoot, sourceFile));
+    if (raw) {
+      const content = sourceFile === "AGENTS.md" ? stripCodexManagedBlock(raw) : raw;
+      if (content.trim().length === 0) {
+        continue;
+      }
       sourceFiles.push({ sourceFile, content });
     }
   }

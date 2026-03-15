@@ -54,6 +54,9 @@ agent state, use:
 pi install -l npm:@mmcook/pi-brainmaxx
 ```
 
+There is now an internal Codex adapter in `codex-skills/`, but Pi remains the
+only published package surface.
+
 ## Why this exists
 
 Most repo context is real, but scattered. Some of it lives in `AGENTS.md`. Some
@@ -91,6 +94,24 @@ mining learnings over time.
 This package stays intentionally small. It does not try to become another
 orchestrator, another dashboard, or a generic memory platform.
 
+## Codex adapter
+
+The repo now also carries a Codex-native second consumer:
+- `codex-skills/brainmaxx-init`
+- `codex-skills/brainmaxx-reflect`
+- `codex-skills/brainmaxx-ruminate`
+
+Those skills use the same `brain/` corpus and a managed `AGENTS.md` block:
+
+```md
+<!-- brainmaxx:start -->
+...
+<!-- brainmaxx:end -->
+```
+
+Only `brainmaxx-init` updates that block. Reflection and rumination write only
+under `brain/`.
+
 With regard to the core idea, `pi-brainmaxx` is inspired by
 [`brainmaxxing`](https://github.com/poteto/brainmaxxing) by poteto. The
 implementation here is Pi-native and specific to this package.
@@ -122,10 +143,13 @@ the generated indexes themselves.
 
 ## Current limits
 
-- Pi-only, not a generic agent-memory layer
+- Pi is the only published package surface today
+- Codex support is local and adapter-specific, not a published package yet
 - Repo-local, not a hosted memory service
 - `ruminate` depends on Pi's current session format
 - if Pi changes that format, `ruminate` reports the mismatch and needs an update
+- Codex rumination is still an evidence-gated adapter and depends on the
+  current raw Codex session format under `~/.codex/sessions`
 - skill behavior in `pi -p` (including `/reflect` and `/ruminate`) depends on
   LLM compliance with skill instructions; skills are markdown-guided, not
   programmatic commands, so results may vary across models and versions
