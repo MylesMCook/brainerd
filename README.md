@@ -36,7 +36,8 @@ What to expect:
   missed durable knowledge; it presents findings first and only writes to
   `brain/` after you confirm in the current conversation
 - the included extension reads `brain/index.md` and `brain/principles.md` on
-  normal turns
+  normal turns and provides the guarded SDK tools behind `/reflect` and
+  `/ruminate`
 
 `pi -p` works too:
 
@@ -44,7 +45,7 @@ What to expect:
 pi -p "/brain-init"
 pi -p "/brain-init --apply-bootstrap"
 pi -p "/reflect"           # may write, prints summary
-pi -p "/ruminate"          # preview-only, no writes without confirmation
+pi -p "/ruminate"          # preview-only, no apply step in print mode
 ```
 
 If you want the package attached to project settings instead of your global Pi
@@ -89,7 +90,13 @@ mining learnings over time.
 3. `/reflect` writes durable learnings from the current session and prints a
    summary of what changed.
 4. `/ruminate` mines repo-scoped Pi history when enough sessions exist. It shows
-   findings first; writes only happen after you confirm in the same conversation.
+   findings first; writes only happen after you confirm in the same interactive
+   Pi conversation. `pi -p` stays preview-only.
+
+`/reflect` and `/ruminate` stay public skills. The package extension backs them
+with narrow SDK tools for session extraction, staging, safe brain writes, and
+fallback summaries. That keeps the workflow skill-native without giving generic
+file writes to those runs.
 
 This package stays intentionally small. It does not try to become another
 orchestrator, another dashboard, or a generic memory platform.
@@ -150,9 +157,9 @@ the generated indexes themselves.
 - if Pi changes that format, `ruminate` reports the mismatch and needs an update
 - Codex rumination is still an evidence-gated adapter and depends on the
   current raw Codex session format under `~/.codex/sessions`
-- skill behavior in `pi -p` (including `/reflect` and `/ruminate`) depends on
-  LLM compliance with skill instructions; skills are markdown-guided, not
-  programmatic commands, so results may vary across models and versions
+- `reflect` and `ruminate` stay skills, so the model still decides what durable
+  knowledge matters; the extension only constrains data access, write paths, and
+  confirmation flow
 
 Operational bootstrap writes exactly one note:
 

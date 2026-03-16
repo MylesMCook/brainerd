@@ -34,6 +34,16 @@ export type BrainNoteWriteResult = {
   synced: string[];
 };
 
+export type BrainChange = {
+  path: string;
+  content: string;
+};
+
+export type ApplyBrainChangesResult = {
+  changed: string[];
+  synced: string[];
+};
+
 const STARTER_BRAIN_ROOT = fileURLToPath(new URL("../brain", import.meta.url));
 const LOCKFILE_NAME = ".brainmaxx.lock";
 const LOCK_STALE_MS = 30_000;
@@ -412,6 +422,16 @@ const syncOwnedEntryPointsUnlocked = async (projectRoot: string, state: BrainSta
 
 const ensureTrailingNewline = (content: string): string => (content.endsWith("\n") ? content : `${content}\n`);
 
+const isAllowedBrainChangePath = (relativePath: string): boolean => {
+  if (!relativePath.endsWith(".md")) {
+    return false;
+  }
+  if (relativePath === INDEX_ENTRYPOINT || relativePath === PRINCIPLES_ENTRYPOINT || relativePath === BRAIN_VERSION_FILE) {
+    return false;
+  }
+  return relativePath.startsWith(`${NOTES_DIR}/`) || relativePath.startsWith("brain/principles/");
+};
+
 export const syncOwnedEntryPoints = async (projectRoot: string): Promise<BrainSyncResult> => {
   return withBrainLock(projectRoot, async () => {
     const state = await readBrainState(projectRoot);
@@ -459,6 +479,50 @@ export const writeNoteIfMissing = async (
     const sync = await syncOwnedEntryPointsUnlocked(projectRoot, state);
     return {
       created: true,
+      synced: sync.updated,
+    };
+  });
+};
+
+export const applyBrainChanges = async (
+  projectRoot: string,
+  changes: BrainChange[],
+): Promise<ApplyBrainChangesResult> => {
+  const normalizedChanges = changes.map((change) => ({
+    path: toPortablePath(change.path),
+    content: ensureTrailingNewline(change.content),
+  }));
+
+  const seenPaths = new Set<string>();
+  for (const change of normalizedChanges) {
+    if (!isAllowedBrainChangePath(change.path)) {
+      throw new Error(
+        `Brain changes must target markdown files under ${NOTES_DIR}/ or brain/principles/. Rejected: ${change.path}`,
+      );
+    }
+    if (seenPaths.has(change.path)) {
+      throw new Error(`Duplicate brain change target: ${change.path}`);
+    }
+    seenPaths.add(change.path);
+  }
+
+  return withBrainLock(projectRoot, async () => {
+    const state = await readBrainState(projectRoot);
+    if (!state) {
+      throw new Error("No project brain found. Run /brain-init first.");
+    }
+
+    const changed: string[] = [];
+    for (const change of normalizedChanges) {
+      const target = path.join(projectRoot, change.path);
+      if (await writeIfChanged(target, change.content)) {
+        changed.push(change.path);
+      }
+    }
+
+    const sync = await syncOwnedEntryPointsUnlocked(projectRoot, state);
+    return {
+      changed: uniqueSorted(changed),
       synced: sync.updated,
     };
   });

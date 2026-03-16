@@ -1,94 +1,84 @@
-# pi-brainmaxx UX Hardening Plan
+# pi-brainmaxx Skill Reliability Notes
 
-## Status: Complete
+## Status
 
-Root cause identified, skill instructions updated, non-interactive contract
-defined. This document records the findings and the fix.
+Implemented in `v0.3.0`.
 
-## Root Cause
+## Decision
 
-`/brain-init` works cleanly in `pi -p` because it is an extension **command**
-with direct runtime control: `ctx.hasUI` branching, `console.log` for output,
-explicit return for exit.
+`/reflect` and `/ruminate` remain public skills.
 
-`/reflect` and `/ruminate` are **skills** -- markdown instructions the LLM
-follows. Skills have no programmatic mechanism to detect non-interactive mode,
-enforce confirmation gates, or guarantee visible output before exit.
+They are no longer treated as pure markdown instructions with generic file
+access. The extension now supplies a narrow SDK control layer around those
+skills:
 
-When `pi -p "/ruminate"` ran, the LLM followed the skill instruction "stop and
-wait for explicit confirmation" in a context where no user could confirm. The
-result was either a silent write or a hang, neither of which is acceptable.
+- raw input interception for `/reflect`, `/ruminate`, `/skill:reflect`, and
+  `/skill:ruminate`
+- per-run tool narrowing with `setActiveTools()`
+- guarded internal tools for current-session extraction, repo history loading,
+  rumination staging, staged preview retrieval, and safe brain writes
+- fallback summary messages when the model fails to print one
 
-This is an architecture gap between commands and skills, not a bug in brain
-logic or session handling. The underlying brain result from `ruminate` was
-correct (it created a valid note and synced entrypoints).
+`/brain-init` remains the only public extension command.
 
-## Non-Interactive UX Contract
+## Current Contract
 
-For `v0.3`, the minimum acceptable behavior:
+### `/reflect`
 
-- `pi -p "/reflect"` -- may write durable changes; must print a visible summary
-  and exit cleanly.
-- `pi -p "/ruminate"` -- findings preview only; never writes without explicit
-  confirmation in the current conversation. Must print a visible summary and
-  exit cleanly.
-- `/brain-init` -- unchanged; already has deterministic non-interactive handling.
+- still invoked as a skill
+- the extension rewrites `/reflect` to `/skill:reflect`
+- the run gets only:
+  - `read`
+  - `find`
+  - `grep`
+  - `brainmaxx_current_session`
+  - `brainmaxx_apply_changes`
+- brain writes are only allowed through `brainmaxx_apply_changes`
+- the skill must end with a visible section that starts with `Brainmaxx summary:`
 
-Both skills must always end with a visible summary stating what happened.
+### `/ruminate`
 
-## Applied Fix
+- still invoked as a skill
+- the extension rewrites `/ruminate` to `/skill:ruminate`
+- preview runs get only:
+  - `read`
+  - `find`
+  - `grep`
+  - `brainmaxx_repo_sessions`
+  - `brainmaxx_stage_ruminate`
+- apply runs get only:
+  - `read`
+  - `find`
+  - `grep`
+  - `brainmaxx_get_staged_ruminate`
+  - `brainmaxx_apply_changes`
+- preview is always first
+- interactive Pi accepts a short plain-English confirmation like `yes` or
+  `apply it`
+- rejection like `no` or `cancel` discards the staged preview and writes nothing
+- `pi -p "/ruminate"` stays preview-only and has no apply step
 
-Updated `skills/ruminate/SKILL.md`:
+## Guardrails
 
-- Replaced "stop and wait for confirmation" with "only write after explicit user
-  confirmation in the current conversation."
-- Added: "If explicit confirmation is unavailable or cannot be obtained, do not
-  write any brain changes. Present findings as preview-only and stop."
-- Added: "Invoking `/ruminate` is not permission to write."
-- Added mandatory visible summary in all exit paths.
+- `write`, `edit`, and `bash` are blocked during active brainmaxx runs
+- `brainmaxx_apply_changes` only accepts markdown targets under:
+  - `brain/notes/`
+  - `brain/principles/`
+- direct writes to generated entrypoints are rejected:
+  - `brain/index.md`
+  - `brain/principles.md`
+  - `brain/.brainmaxx-version`
+- entrypoint sync happens inside `brainmaxx_apply_changes`
 
-Updated `skills/reflect/SKILL.md`:
+## Why This Shape
 
-- Added mandatory visible summary requirement in output rules, including the
-  no-op case.
-- Summary must state: whether changes were made, which files changed, rationale.
+This keeps the public workflow skill-native while making the dangerous parts
+deterministic:
 
-## Why Not Convert to Commands
+- the model still decides what durable knowledge matters
+- the extension controls what data the skill sees
+- the extension controls how writes happen
+- the extension controls confirmation and fallback reporting
 
-Converting skills to extension commands would give hard runtime control
-(`ctx.hasUI`, deterministic output, explicit apply flags). That is the right
-escalation path if the prompt-based fix proves unreliable in practice.
-
-For now, the skill-instruction fix is the correct minimal boundary because:
-
-- It preserves the current package surface (no new commands).
-- It addresses the immediate failure mode.
-- The permission model difference is intentional: `/reflect` auto-applies,
-  `/ruminate` requires confirmation.
-- Converting both to commands is a larger change that should only happen with
-  evidence that LLM compliance is insufficient.
-
-Promote `/ruminate` to a command if any of these become true:
-
-- Non-interactive runs still sometimes write without confirmation.
-- The LLM still hangs or exits without visible output after the skill fix.
-- A clean `--apply` / preview CLI split is needed.
-
-## Acceptance Criteria
-
-- [x] `/reflect` skill instructions require visible summary in all exit paths
-- [x] `/ruminate` skill instructions are preview-only without explicit
-      confirmation
-- [x] `/ruminate` skill explicitly states invocation is not write permission
-- [x] Smoke test: `pi -p "/reflect"` in a scratch repo prints summary and
-      exits 0
-- [x] Smoke test: `pi -p "/ruminate"` in a scratch repo prints findings preview
-      and exits 0 without writing
-- [x] Real rerun in `~/` confirms both paths work
-
-## Out of Scope
-
-- Claude history import
-- Broad brain schema redesign
-- Review workflow changes
-- Converting skills to commands (deferred unless prompted by real failures)
+That is the smallest change that makes Pi reliable without turning `reflect` and
+`ruminate` into first-class Pi commands.

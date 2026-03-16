@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { initBrain, readBrainState, syncOwnedEntryPoints, writeNoteIfMissing } from "../src/brain.js";
+import { applyBrainChanges, initBrain, readBrainState, syncOwnedEntryPoints, writeNoteIfMissing } from "../src/brain.js";
 
 const tempProject = async (): Promise<string> => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-brain-"));
@@ -114,4 +114,35 @@ test("writeNoteIfMissing creates a note once and syncs the index", async () => {
   assert.ok(first.synced.includes("brain/index.md"));
   assert.equal(second.created, false);
   assert.match(indexText, /\[\[notes\/repo-operations\.md\]\]/);
+});
+
+test("applyBrainChanges writes notes and syncs entrypoints", async () => {
+  const projectRoot = await tempProject();
+  await initBrain(projectRoot);
+
+  const result = await applyBrainChanges(projectRoot, [
+    {
+      path: "brain/notes/session-pattern.md",
+      content: "# Session Pattern\n\nUse reflect after durable corrections.\n",
+    },
+  ]);
+
+  const indexText = await fs.readFile(path.join(projectRoot, "brain/index.md"), "utf8");
+  assert.deepEqual(result.changed, ["brain/notes/session-pattern.md"]);
+  assert.ok(result.synced.includes("brain/index.md"));
+  assert.match(indexText, /\[\[notes\/session-pattern\.md\]\]/);
+});
+
+test("applyBrainChanges rejects managed entrypoints and non-brain paths", async () => {
+  const projectRoot = await tempProject();
+  await initBrain(projectRoot);
+
+  await assert.rejects(
+    applyBrainChanges(projectRoot, [{ path: "brain/index.md", content: "# Nope\n" }]),
+    /brain\/notes\/ or brain\/principles\//,
+  );
+  await assert.rejects(
+    applyBrainChanges(projectRoot, [{ path: "README.md", content: "# Nope\n" }]),
+    /brain\/notes\/ or brain\/principles\//,
+  );
 });

@@ -1,17 +1,78 @@
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { applyOperationalBootstrap, planOperationalBootstrap } from "../src/bootstrap.js";
-import { buildInjectedBrainMessage } from "../src/injection.js";
 import {
+  applyBrainChanges,
   initBrain,
   readEntrypoints,
   syncOwnedEntryPoints,
+  type BrainChange,
 } from "../src/brain.js";
+import { collectCurrentSessionSnapshot } from "../src/current-session.js";
+import { buildInjectedBrainMessage } from "../src/injection.js";
 import { findGitRoot, resolveProjectRoot } from "../src/project-root.js";
 import { collectRepoSessions } from "../src/sessions.js";
 
 const APPLY_BOOTSTRAP_FLAG = "--apply-bootstrap";
+const BRAINTYPE_CONTEXT = "brainmaxx-context";
+const BRAINTYPE_STATUS = "brainmaxx-status";
+const BRAINTYPE_STAGE = "brainmaxx-ruminate-stage";
+const SUMMARY_MARKER = "Brainmaxx summary:";
+
+const BUILTIN_DEFAULT_TOOLS = ["read", "bash", "edit", "write", "find", "grep", "ls"];
+const REFLECT_TOOLS = ["read", "find", "grep", "brainmaxx_current_session", "brainmaxx_apply_changes"];
+const RUMINATE_PREVIEW_TOOLS = ["read", "find", "grep", "brainmaxx_repo_sessions", "brainmaxx_stage_ruminate"];
+const RUMINATE_APPLY_TOOLS = ["read", "find", "grep", "brainmaxx_get_staged_ruminate", "brainmaxx_apply_changes"];
+const BLOCKED_RUN_TOOLS = new Set(["write", "edit", "bash"]);
+const INTERNAL_BRAINMAXX_TOOLS = new Set([
+  "brainmaxx_sync_entrypoints",
+  "brainmaxx_current_session",
+  "brainmaxx_repo_sessions",
+  "brainmaxx_stage_ruminate",
+  "brainmaxx_get_staged_ruminate",
+  "brainmaxx_apply_changes",
+]);
+const CONFIRM_PHRASES = new Set(["yes", "apply it", "apply those findings", "go ahead", "confirm"]);
+const REJECT_PHRASES = new Set(["no", "cancel", "discard", "dont apply", "don't apply"]);
+
+type RunMode = "reflect" | "ruminate-preview" | "ruminate-apply";
+
+type ActiveRun = {
+  mode: RunMode;
+  previousTools: string[];
+  anchorEntryId: string | null;
+  result: RunResult | null;
+};
+
+type RunResult = {
+  mode: RunMode;
+  previewOnly: boolean;
+  written: boolean;
+  changedFiles: string[];
+  syncedFiles: string[];
+};
+
+type RuminateStage = {
+  stageId: string;
+  repoRoot: string;
+  createdAt: string;
+  findingsSummary: string;
+  rationale: string;
+  changes: BrainChange[];
+  status: "staged" | "applied" | "discarded";
+  changedFiles?: string[];
+  syncedFiles?: string[];
+};
+
+type SessionManagerLike = {
+  getBranch(fromId?: string): Array<any>;
+  getEntries(): Array<any>;
+  getHeader(): { cwd: string; timestamp: string } | null;
+  getLeafId?(): string | null;
+  getSessionFile?(): string | undefined;
+};
 
 const report = (
   message: string,
@@ -68,7 +129,204 @@ const formatBootstrapPreview = (noteRelativePath: string, sourceFiles: string[],
   return lines.join("\n");
 };
 
+const normalizeReply = (text: string): string =>
+  text
+    .trim()
+    .toLowerCase()
+    .replace(/[.!?]+$/g, "")
+    .replace(/\s+/g, " ");
+
+const getToolsForMode = (mode: RunMode): string[] => {
+  if (mode === "reflect") {
+    return REFLECT_TOOLS;
+  }
+  if (mode === "ruminate-preview") {
+    return RUMINATE_PREVIEW_TOOLS;
+  }
+  return RUMINATE_APPLY_TOOLS;
+};
+
+const parseSkillInvocation = (text: string): { mode: RunMode; transformed: string | null } | null => {
+  const trimmed = text.trim();
+
+  if (/^\/reflect(?:\s+.*)?$/u.test(trimmed)) {
+    const args = trimmed.slice("/reflect".length).trim();
+    return { mode: "reflect", transformed: `/skill:reflect${args ? ` ${args}` : ""}` };
+  }
+  if (/^\/skill:reflect(?:\s+.*)?$/u.test(trimmed)) {
+    return { mode: "reflect", transformed: null };
+  }
+  if (/^\/ruminate(?:\s+.*)?$/u.test(trimmed)) {
+    const args = trimmed.slice("/ruminate".length).trim();
+    return { mode: "ruminate-preview", transformed: `/skill:ruminate${args ? ` ${args}` : ""}` };
+  }
+  if (/^\/skill:ruminate(?:\s+.*)?$/u.test(trimmed)) {
+    return { mode: "ruminate-preview", transformed: null };
+  }
+
+  return null;
+};
+
+const textFromContent = (content: unknown): string => {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return "";
+  }
+  return content
+    .filter((part): part is { type: string; text?: string } => Boolean(part && typeof part === "object"))
+    .filter((part) => part.type === "text" && typeof part.text === "string")
+    .map((part) => part.text ?? "")
+    .join("\n");
+};
+
+const lastAssistantText = (messages: Array<any>): string => {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role === "assistant") {
+      return textFromContent(message.content).trim();
+    }
+  }
+  return "";
+};
+
+const getLatestRuminateStage = (entries: Array<any>): RuminateStage | null => {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry?.type !== "custom" || entry.customType !== BRAINTYPE_STAGE) {
+      continue;
+    }
+    const data = entry.data as Partial<RuminateStage> | undefined;
+    if (
+      !data ||
+      typeof data.stageId !== "string" ||
+      typeof data.repoRoot !== "string" ||
+      typeof data.createdAt !== "string" ||
+      typeof data.findingsSummary !== "string" ||
+      typeof data.rationale !== "string" ||
+      !Array.isArray(data.changes) ||
+      (data.status !== "staged" && data.status !== "applied" && data.status !== "discarded")
+    ) {
+      continue;
+    }
+    return {
+      stageId: data.stageId,
+      repoRoot: data.repoRoot,
+      createdAt: data.createdAt,
+      findingsSummary: data.findingsSummary,
+      rationale: data.rationale,
+      changes: data.changes
+        .filter((change): change is BrainChange => Boolean(change && typeof change.path === "string" && typeof change.content === "string"))
+        .map((change) => ({ path: change.path, content: change.content })),
+      status: data.status,
+      changedFiles: Array.isArray(data.changedFiles) ? data.changedFiles.filter((item): item is string => typeof item === "string") : [],
+      syncedFiles: Array.isArray(data.syncedFiles) ? data.syncedFiles.filter((item): item is string => typeof item === "string") : [],
+    };
+  }
+  return null;
+};
+
+const emitStatus = (pi: ExtensionAPI, content: string, hasUI = true): void => {
+  if (!hasUI) {
+    console.log(content);
+    return;
+  }
+
+  pi.sendMessage(
+    {
+      customType: BRAINTYPE_STATUS,
+      content,
+      display: true,
+    },
+    { triggerTurn: false },
+  );
+};
+
+const formatRunSummary = (result: RunResult | null): string => {
+  if (!result) {
+    return [
+      SUMMARY_MARKER,
+      "- no validated brain changes were written",
+      "- Pi did not emit the expected summary, so this fallback was generated by the extension",
+    ].join("\n");
+  }
+
+  const lines = [SUMMARY_MARKER];
+  if (result.previewOnly) {
+    lines.push("- preview-only: yes");
+    lines.push("- no brain changes were written");
+    return lines.join("\n");
+  }
+
+  lines.push(`- changes written: ${result.written ? "yes" : "no"}`);
+  lines.push(`- changed files: ${result.changedFiles.length > 0 ? result.changedFiles.join(", ") : "none"}`);
+  if (result.syncedFiles.length > 0) {
+    lines.push(`- synced entrypoints: ${result.syncedFiles.join(", ")}`);
+  }
+  return lines.join("\n");
+};
+
+const renderRunInstructions = (mode: RunMode, stage: RuminateStage | null): string => {
+  if (mode === "reflect") {
+    return [
+      "[brainmaxx reflect run]",
+      "Use only read/find/grep plus brainmaxx_current_session and brainmaxx_apply_changes.",
+      "Do not use generic write, edit, or bash tools.",
+      "Decide the smallest durable brain change, apply it with brainmaxx_apply_changes, and end with a visible section that starts exactly with 'Brainmaxx summary:'.",
+    ].join("\n");
+  }
+
+  if (mode === "ruminate-preview") {
+    return [
+      "[brainmaxx ruminate preview run]",
+      "Use brainmaxx_repo_sessions, then stage a preview with brainmaxx_stage_ruminate.",
+      "Do not write directly to files in this phase.",
+      "End with a visible section that starts exactly with 'Brainmaxx summary:' and state explicitly that no brain changes were written yet.",
+    ].join("\n");
+  }
+
+  return [
+    "[brainmaxx ruminate apply run]",
+    stage ? `Apply exactly staged preview ${stage.stageId}.` : "If no staged preview exists, stop and report that no brain changes were written.",
+    "Call brainmaxx_get_staged_ruminate first, then apply that staged proposal with brainmaxx_apply_changes.",
+    "Do not invent new changes in apply mode.",
+    "End with a visible section that starts exactly with 'Brainmaxx summary:'.",
+  ].join("\n");
+};
+
+const createStageEntry = (projectRoot: string, summary: string, rationale: string, changes: BrainChange[]): RuminateStage => ({
+  stageId: randomUUID(),
+  repoRoot: projectRoot,
+  createdAt: new Date().toISOString(),
+  findingsSummary: summary.trim(),
+  rationale: rationale.trim(),
+  changes: changes.map((change) => ({ path: change.path, content: change.content })),
+  status: "staged",
+});
+
 export default function brainContext(pi: ExtensionAPI): void {
+  let activeRun: ActiveRun | null = null;
+
+  const restoreTools = (): void => {
+    if (!activeRun) {
+      return;
+    }
+    pi.setActiveTools(activeRun.previousTools);
+  };
+
+  const startRun = (mode: RunMode, ctx: { sessionManager: SessionManagerLike }): void => {
+    const previousTools = pi.getActiveTools?.() ?? BUILTIN_DEFAULT_TOOLS;
+    const anchorEntryId = mode === "reflect" ? (ctx.sessionManager.getLeafId?.() ?? null) : null;
+    activeRun = {
+      mode,
+      previousTools,
+      anchorEntryId,
+      result: null,
+    };
+    pi.setActiveTools(getToolsForMode(mode));
+  };
+
   pi.registerCommand("brain-init", {
     description: "Initialize a project-local brain in the current repo",
     getArgumentCompletions: (prefix) => {
@@ -144,19 +402,84 @@ export default function brainContext(pi: ExtensionAPI): void {
     },
   });
 
+  pi.on("input", async (event, ctx) => {
+    if (event.source === "extension") {
+      return { action: "continue" as const };
+    }
+
+    const sessionManager = ctx.sessionManager as SessionManagerLike;
+    const staged = getLatestRuminateStage(sessionManager.getBranch());
+    const normalized = normalizeReply(event.text);
+    const skillInvocation = parseSkillInvocation(event.text);
+
+    if ((!ctx.isIdle() && skillInvocation) || (!ctx.isIdle() && staged && (CONFIRM_PHRASES.has(normalized) || REJECT_PHRASES.has(normalized)))) {
+      emitStatus(pi, "Brainmaxx runs must start when Pi is idle. Wait for the current turn to finish, then try again.", ctx.hasUI);
+      return { action: "handled" as const };
+    }
+
+    if (staged?.status === "staged") {
+      if (CONFIRM_PHRASES.has(normalized)) {
+        if (!ctx.hasUI) {
+          emitStatus(
+            pi,
+            [
+              SUMMARY_MARKER,
+              "- preview-only: yes",
+              '- pi -p "/ruminate" has no apply step',
+              "- no brain changes were written",
+            ].join("\n"),
+            ctx.hasUI,
+          );
+          return { action: "handled" as const };
+        }
+        startRun("ruminate-apply", { sessionManager });
+        return { action: "transform" as const, text: "/skill:ruminate" };
+      }
+
+      if (REJECT_PHRASES.has(normalized)) {
+        pi.appendEntry(BRAINTYPE_STAGE, { ...staged, status: "discarded" } satisfies RuminateStage);
+        emitStatus(pi, `${SUMMARY_MARKER}\n- preview-only: yes\n- no brain changes were written`, ctx.hasUI);
+        return { action: "handled" as const };
+      }
+    }
+
+    if (!skillInvocation) {
+      return { action: "continue" as const };
+    }
+
+    startRun(skillInvocation.mode, { sessionManager });
+    if (skillInvocation.transformed) {
+      return { action: "transform" as const, text: skillInvocation.transformed };
+    }
+    return { action: "continue" as const };
+  });
+
   pi.on("before_agent_start", async (_event, ctx) => {
     try {
       const projectRoot = await resolveProjectRoot(ctx.cwd);
       const entrypoints = await readEntrypoints(projectRoot);
-      if (!entrypoints) {
+      const parts: string[] = [];
+
+      if (entrypoints) {
+        parts.push(buildInjectedBrainMessage(entrypoints.index, entrypoints.principles).content);
+      }
+
+      if (activeRun) {
+        const stage =
+          activeRun.mode === "ruminate-apply"
+            ? getLatestRuminateStage((ctx.sessionManager as SessionManagerLike).getBranch())
+            : null;
+        parts.push(renderRunInstructions(activeRun.mode, stage));
+      }
+
+      if (parts.length === 0) {
         return;
       }
 
-      const injection = buildInjectedBrainMessage(entrypoints.index, entrypoints.principles);
       return {
         message: {
-          customType: "brainmaxx-context",
-          content: injection.content,
+          customType: BRAINTYPE_CONTEXT,
+          content: parts.join("\n\n---\n\n"),
           display: false,
         },
       };
@@ -167,6 +490,50 @@ export default function brainContext(pi: ExtensionAPI): void {
       console.warn(`pi-brainmaxx skipped ambient brain loading: ${(error as Error).message}`);
       return;
     }
+  });
+
+  pi.on("tool_call", async (event) => {
+    if (!activeRun && INTERNAL_BRAINMAXX_TOOLS.has(event.toolName)) {
+      return {
+        block: true,
+        reason: `brainmaxx internal tool ${event.toolName} is only available during an explicit /reflect or /ruminate run.`,
+      };
+    }
+
+    if (!activeRun) {
+      return;
+    }
+
+    const allowedTools = new Set(getToolsForMode(activeRun.mode));
+    if (!allowedTools.has(event.toolName)) {
+      return {
+        block: true,
+        reason: `brainmaxx skill run active: ${event.toolName} is not available in ${activeRun.mode}.`,
+      };
+    }
+
+    if (BLOCKED_RUN_TOOLS.has(event.toolName)) {
+      return {
+        block: true,
+        reason: `brainmaxx skill run active: ${event.toolName} is blocked. Use the brainmaxx tools instead.`,
+      };
+    }
+  });
+
+  pi.on("agent_end", async (event, ctx) => {
+    if (!activeRun) {
+      return;
+    }
+
+    const completedRun = activeRun;
+    restoreTools();
+    activeRun = null;
+
+    if (lastAssistantText(event.messages).includes(SUMMARY_MARKER)) {
+      return;
+    }
+
+    emitStatus(pi, formatRunSummary(completedRun.result), ctx?.hasUI ?? true);
   });
 
   pi.registerTool({
@@ -190,6 +557,32 @@ export default function brainContext(pi: ExtensionAPI): void {
   });
 
   pi.registerTool({
+    name: "brainmaxx_current_session",
+    label: "Current Pi session",
+    description: "Return a normalized transcript of the current Pi session before the active reflect invocation",
+    parameters: Type.Object({}),
+    async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
+      const snapshot = collectCurrentSessionSnapshot(
+        ctx.sessionManager as SessionManagerLike,
+        activeRun?.anchorEntryId ?? null,
+      );
+
+      const lines = [
+        `cwd: ${snapshot.cwd || ctx.cwd}`,
+        `startedAt: ${snapshot.startedAt || "unknown"}`,
+        `messages: ${snapshot.messageCount}`,
+        `models: ${snapshot.assistantModels.length > 0 ? snapshot.assistantModels.join(", ") : "unknown"}`,
+        "",
+        snapshot.transcript || "[brainmaxx] No readable current-session transcript was found before this reflect invocation.",
+      ];
+      return {
+        content: [{ type: "text", text: lines.join("\n") }],
+        details: snapshot,
+      };
+    },
+  });
+
+  pi.registerTool({
     name: "brainmaxx_repo_sessions",
     label: "Repo Pi sessions",
     description: "Load repo-scoped Pi session transcripts for rumination",
@@ -200,7 +593,7 @@ export default function brainContext(pi: ExtensionAPI): void {
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const result = await collectRepoSessions({
         cwd: ctx.cwd,
-        currentSessionFile: ctx.sessionManager.getSessionFile(),
+        currentSessionFile: (ctx.sessionManager as SessionManagerLike).getSessionFile?.(),
         maxSessions: params.maxSessions,
         maxCharsPerSession: params.maxCharsPerSession,
       });
@@ -223,6 +616,142 @@ export default function brainContext(pi: ExtensionAPI): void {
         );
       }
 
+      return {
+        content: [{ type: "text", text: lines.join("\n") }],
+        details: result,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "brainmaxx_stage_ruminate",
+    label: "Stage rumination findings",
+    description: "Persist a preview of proposed rumination changes for later confirmation",
+    parameters: Type.Object({
+      findingsSummary: Type.String({ minLength: 1 }),
+      rationale: Type.String({ minLength: 1 }),
+      changes: Type.Array(
+        Type.Object({
+          path: Type.String({ minLength: 1 }),
+          content: Type.String({ minLength: 1 }),
+        }),
+        { minItems: 1, maxItems: 12 },
+      ),
+    }),
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      const projectRoot = await resolveProjectRoot(ctx.cwd);
+      const stage = createStageEntry(projectRoot, params.findingsSummary, params.rationale, params.changes);
+      pi.appendEntry(BRAINTYPE_STAGE, stage);
+
+      if (activeRun?.mode === "ruminate-preview") {
+        activeRun.result = {
+          mode: "ruminate-preview",
+          previewOnly: true,
+          written: false,
+          changedFiles: [],
+          syncedFiles: [],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Staged rumination preview ${stage.stageId} with ${stage.changes.length} proposed change(s).`,
+          },
+        ],
+        details: stage,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "brainmaxx_get_staged_ruminate",
+    label: "Get staged rumination preview",
+    description: "Return the latest staged rumination preview for the current session",
+    parameters: Type.Object({}),
+    async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
+      const stage = getLatestRuminateStage((ctx.sessionManager as SessionManagerLike).getBranch());
+      if (!stage || stage.status !== "staged") {
+        return {
+          content: [{ type: "text", text: "No staged rumination preview is available." }],
+          details: null,
+        };
+      }
+
+      const lines = [
+        `Stage: ${stage.stageId}`,
+        `Repo root: ${stage.repoRoot}`,
+        `Created: ${stage.createdAt}`,
+        `Findings: ${stage.findingsSummary}`,
+        `Rationale: ${stage.rationale}`,
+        `Targets: ${stage.changes.map((change) => change.path).join(", ")}`,
+      ];
+      return {
+        content: [{ type: "text", text: lines.join("\n") }],
+        details: stage,
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "brainmaxx_apply_changes",
+    label: "Apply validated brain changes",
+    description: "Apply note or principle updates under brain/ and regenerate entrypoints",
+    parameters: Type.Object({
+      stageId: Type.Optional(Type.String({ minLength: 1 })),
+      changes: Type.Optional(
+        Type.Array(
+          Type.Object({
+            path: Type.String({ minLength: 1 }),
+            content: Type.String({ minLength: 1 }),
+          }),
+          { minItems: 1, maxItems: 12 },
+        ),
+      ),
+    }),
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      const projectRoot = await resolveProjectRoot(ctx.cwd);
+      let changes = params.changes ?? [];
+      let appliedStage: RuminateStage | null = null;
+
+      if (params.stageId) {
+        const stage = getLatestRuminateStage((ctx.sessionManager as SessionManagerLike).getBranch());
+        if (!stage || stage.status !== "staged" || stage.stageId !== params.stageId) {
+          throw new Error(`No staged rumination preview matched ${params.stageId}.`);
+        }
+        appliedStage = stage;
+        changes = stage.changes;
+      }
+
+      if (changes.length === 0) {
+        throw new Error("brainmaxx_apply_changes requires either changes or a staged stageId.");
+      }
+
+      const result = await applyBrainChanges(projectRoot, changes);
+      if (appliedStage) {
+        pi.appendEntry(BRAINTYPE_STAGE, {
+          ...appliedStage,
+          status: "applied",
+          changedFiles: result.changed,
+          syncedFiles: result.synced,
+        } satisfies RuminateStage);
+      }
+
+      if (activeRun) {
+        activeRun.result = {
+          mode: activeRun.mode,
+          previewOnly: false,
+          written: result.changed.length > 0,
+          changedFiles: result.changed,
+          syncedFiles: result.synced,
+        };
+      }
+
+      const lines = [
+        `Changed: ${result.changed.length > 0 ? result.changed.join(", ") : "none"}`,
+        `Synced: ${result.synced.length > 0 ? result.synced.join(", ") : "none"}`,
+      ];
       return {
         content: [{ type: "text", text: lines.join("\n") }],
         details: result,
