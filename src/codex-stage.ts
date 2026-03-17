@@ -3,6 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { applyBrainChanges, readBrainState, type ApplyBrainChangesResult, type BrainChange } from "./brain.js";
 import { CODEX_RUMINATE_STAGE_FILE, LEGACY_RUMINATE_STAGE_FILE } from "./constants.js";
+import { resolveSafeRepoPath } from "./fs-helpers.js";
 
 export type CodexRuminateStage = {
   stageId: string;
@@ -21,9 +22,6 @@ export type CodexStageInput = {
   rationale: string;
   changes: BrainChange[];
 };
-
-const stagePath = (projectRoot: string): string => path.join(projectRoot, CODEX_RUMINATE_STAGE_FILE);
-const legacyStagePath = (projectRoot: string): string => path.join(projectRoot, LEGACY_RUMINATE_STAGE_FILE);
 
 const normalizeChanges = (changes: BrainChange[]): BrainChange[] =>
   changes
@@ -56,14 +54,15 @@ const validateStageInput = (input: CodexStageInput): CodexStageInput => {
 };
 
 const writeStage = async (projectRoot: string, stage: CodexRuminateStage): Promise<void> => {
-  const target = stagePath(projectRoot);
+  const target = await resolveSafeRepoPath(projectRoot, CODEX_RUMINATE_STAGE_FILE);
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, `${JSON.stringify(stage, null, 2)}\n`);
-  await fs.rm(legacyStagePath(projectRoot), { force: true });
+  await fs.rm(await resolveSafeRepoPath(projectRoot, LEGACY_RUMINATE_STAGE_FILE), { force: true });
 };
 
 export const getCodexRuminateStage = async (projectRoot: string): Promise<CodexRuminateStage | null> => {
-  for (const target of [stagePath(projectRoot), legacyStagePath(projectRoot)]) {
+  for (const relativePath of [CODEX_RUMINATE_STAGE_FILE, LEGACY_RUMINATE_STAGE_FILE]) {
+    const target = await resolveSafeRepoPath(projectRoot, relativePath);
     try {
       const raw = await fs.readFile(target, "utf8");
       const parsed = JSON.parse(raw) as Partial<CodexRuminateStage>;
@@ -77,6 +76,11 @@ export const getCodexRuminateStage = async (projectRoot: string): Promise<CodexR
         (parsed.status !== "staged" && parsed.status !== "applied" && parsed.status !== "discarded")
       ) {
         throw new Error(`Malformed ${path.relative(projectRoot, target)}`);
+      }
+      if (path.resolve(parsed.repoRoot) !== path.resolve(projectRoot)) {
+        throw new Error(
+          `Staged Codex rumination preview belongs to ${parsed.repoRoot}, not ${projectRoot}.`,
+        );
       }
 
       return {

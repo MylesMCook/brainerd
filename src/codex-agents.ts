@@ -1,6 +1,5 @@
 import fs from "node:fs/promises";
-import path from "node:path";
-import { readFileIfPresent } from "./fs-helpers.js";
+import { readFileIfPresent, resolveSafeRepoPath } from "./fs-helpers.js";
 
 export const BRAINERD_AGENTS_BLOCK_START = "<!-- brainerd:start -->";
 export const BRAINERD_AGENTS_BLOCK_END = "<!-- brainerd:end -->";
@@ -53,9 +52,11 @@ export const renderCodexAgentsBlock = (): string =>
     BRAINERD_AGENTS_BLOCK_START,
     "brainerd managed block",
     "",
+    "This repo uses Brainerd.",
     "Before non-trivial repo work, read `brain/index.md` and `brain/principles.md`.",
     "Treat them as durable repo memory. Edit linked principle files or notes, not",
-    "the generated entrypoints themselves.",
+    "the generated entrypoints themselves. Use explicit Brainerd actions for",
+    "init, reflect, or ruminate; do not perform memory writes automatically.",
     BRAINERD_AGENTS_BLOCK_END,
   ].join("\n");
 
@@ -103,7 +104,7 @@ export const updateCodexAgentsContent = (content: string | null): CodexAgentsUpd
 };
 
 export const upsertCodexAgentsBlock = async (projectRoot: string): Promise<CodexAgentsUpdateResult> => {
-  const agentsPath = path.join(projectRoot, AGENTS_FILE);
+  const agentsPath = await resolveSafeRepoPath(projectRoot, AGENTS_FILE);
   const current = await readFileIfPresent(agentsPath);
   const updated = updateCodexAgentsContent(current);
 
@@ -112,4 +113,10 @@ export const upsertCodexAgentsBlock = async (projectRoot: string): Promise<Codex
   }
 
   return updated;
+};
+
+export const planCodexAgentsUpdate = async (projectRoot: string): Promise<CodexAgentsUpdateResult> => {
+  const agentsPath = await resolveSafeRepoPath(projectRoot, AGENTS_FILE);
+  const current = await readFileIfPresent(agentsPath);
+  return updateCodexAgentsContent(current);
 };

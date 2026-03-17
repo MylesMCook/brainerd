@@ -22,7 +22,9 @@ test("updateCodexAgentsContent creates a minimal AGENTS.md block when the file i
 
   assert.equal(result.status, "created");
   assert.match(result.content, new RegExp(BRAINERD_AGENTS_BLOCK_START.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(result.content, /This repo uses Brainerd/);
   assert.match(result.content, /brain\/index\.md/);
+  assert.match(result.content, /do not perform memory writes automatically/);
 });
 
 test("updateCodexAgentsContent appends one managed block to an existing AGENTS.md", () => {

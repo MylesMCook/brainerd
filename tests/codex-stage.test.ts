@@ -67,3 +67,29 @@ test("discardCodexRuminateStage marks the staged preview as discarded", async ()
   const persisted = await getCodexRuminateStage(projectRoot);
   assert.equal(persisted?.status, "discarded");
 });
+
+test("getCodexRuminateStage rejects a staged preview copied from another repo", async () => {
+  const projectRoot = await tempRepo();
+  const foreignRoot = await tempRepo();
+  await fs.writeFile(
+    path.join(projectRoot, "brain/.brainerd-ruminate-stage.json"),
+    JSON.stringify(
+      {
+        stageId: "foreign-stage",
+        repoRoot: foreignRoot,
+        createdAt: new Date().toISOString(),
+        findingsSummary: "Foreign stage",
+        rationale: "Should not apply across repos.",
+        changes: [{ path: "brain/notes/example.md", content: "# Example\n" }],
+        status: "staged",
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+
+  await assert.rejects(
+    getCodexRuminateStage(projectRoot),
+    /belongs to .* not /,
+  );
+});

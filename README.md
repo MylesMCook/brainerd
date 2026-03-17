@@ -77,13 +77,25 @@ write only through the safe Brainerd path.
 
 ## Codex
 
-This repo also carries local Codex-side skills:
+In Codex, Brainerd has two layers:
+
+- ambient read behavior when a repo already has a Brainerd brain
+- explicit actions for `init`, `reflect`, and `ruminate`
+
+If a repo has `brain/.brainerd-version`, or both `brain/index.md` and
+`brain/principles.md`, Codex should treat Brainerd as active and read those
+entrypoints before non-trivial repo work.
+
+This repo also carries Codex-side skills:
 
 - `codex-skills/brainerd-init`
 - `codex-skills/brainerd-reflect`
 - `codex-skills/brainerd-ruminate`
 
-They use the same `brain/` corpus and a managed `AGENTS.md` block:
+The root `brainerd` skill is the public explicit-action surface. The narrower
+mode skills stay available as subskills.
+
+Brainerd uses the same `brain/` corpus and a managed `AGENTS.md` block:
 
 ```md
 <!-- brainerd:start -->
@@ -91,8 +103,8 @@ They use the same `brain/` corpus and a managed `AGENTS.md` block:
 <!-- brainerd:end -->
 ```
 
-Only `brainerd-init` updates that block. Reflection and rumination write only
-under `brain/`.
+Only `brainerd-init` updates that block. Reflection and rumination stay
+explicit and write only under `brain/`.
 
 ## Ownership
 
@@ -111,7 +123,8 @@ Edit the linked principle files and notes, not the generated entrypoints.
 ## Limits
 
 - Pi is the only published package surface today, under `@mmcook/pi-brainerd`.
-- Codex support is local and adapter-specific, not a published package yet.
+- Codex uses `AGENTS.md` for ambient reads and explicit skills for memory
+  writes; it is not a background daemon.
 - Brainerd is repo-local. It is not a hosted memory service.
 
 ## Attribution

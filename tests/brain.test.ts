@@ -3,7 +3,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { applyBrainChanges, initBrain, readBrainState, syncOwnedEntryPoints, writeNoteIfMissing } from "../src/brain.js";
+import {
+  applyBrainChanges,
+  initBrain,
+  readBrainState,
+  readEntrypoints,
+  syncOwnedEntryPoints,
+  writeNoteIfMissing,
+} from "../src/brain.js";
 
 const tempProject = async (): Promise<string> => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-brain-"));
@@ -22,6 +29,14 @@ test("brain-init creates the managed files and records ownership", async () => {
   assert.ok(state);
   assert.ok(state.ownedFiles.includes("brain/index.md"));
   assert.ok(state.ownedFiles.includes("brain/principles.md"));
+});
+
+test("brain-init does not seed repo-specific notes into new brains", async () => {
+  const projectRoot = await tempProject();
+
+  await initBrain(projectRoot);
+
+  await assert.rejects(fs.access(path.join(projectRoot, "brain/notes")));
 });
 
 test("brain-init preserves existing managed files instead of overwriting them", async () => {
@@ -145,4 +160,42 @@ test("applyBrainChanges rejects managed entrypoints and non-brain paths", async 
     applyBrainChanges(projectRoot, [{ path: "README.md", content: "# Nope\n" }]),
     /brain\/notes\/ or brain\/principles\//,
   );
+});
+
+test("applyBrainChanges rejects traversal paths that escape the brain contract", async () => {
+  const projectRoot = await tempProject();
+  await initBrain(projectRoot);
+
+  await assert.rejects(
+    applyBrainChanges(projectRoot, [{ path: "brain/notes/../../README.md", content: "# Nope\n" }]),
+    /brain\/notes\/ or brain\/principles\//,
+  );
+  await assert.rejects(
+    writeNoteIfMissing(projectRoot, "brain/notes/../../README.md", "# Nope\n"),
+    /Notes must live under brain\/notes\//,
+  );
+});
+
+test("applyBrainChanges rejects symlinked note paths", async () => {
+  const projectRoot = await tempProject();
+  const outsideRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-outside-"));
+  await initBrain(projectRoot);
+  await fs.mkdir(path.join(projectRoot, "brain"), { recursive: true });
+  await fs.symlink(outsideRoot, path.join(projectRoot, "brain/notes"));
+
+  await assert.rejects(
+    applyBrainChanges(projectRoot, [{ path: "brain/notes/escaped.md", content: "# Nope\n" }]),
+    /Refusing to follow a symlinked repo path/,
+  );
+});
+
+test("readEntrypoints rejects symlinked managed entrypoints", async () => {
+  const projectRoot = await tempProject();
+  const outsideFile = path.join(await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-outside-")), "index.md");
+  await fs.writeFile(outsideFile, "# Outside\n");
+  await initBrain(projectRoot);
+  await fs.rm(path.join(projectRoot, "brain/index.md"));
+  await fs.symlink(outsideFile, path.join(projectRoot, "brain/index.md"));
+
+  await assert.rejects(readEntrypoints(projectRoot), /Refusing to follow a symlinked repo path/);
 });

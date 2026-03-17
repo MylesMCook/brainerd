@@ -47,6 +47,26 @@ test("initCodexBrain appends one managed block and previews operational bootstra
   assert.match(result.bootstrap.content, /tmux new-session -A -s beelink/);
 });
 
+test("initCodexBrain rejects duplicate managed blocks before creating a brain", async () => {
+  const projectRoot = await tempProject("dup-blocks");
+  await fs.writeFile(
+    path.join(projectRoot, "AGENTS.md"),
+    [
+      "<!-- brainerd:start -->",
+      "first",
+      "<!-- brainerd:end -->",
+      "",
+      "<!-- brainerd:start -->",
+      "second",
+      "<!-- brainerd:end -->",
+      "",
+    ].join("\n"),
+  );
+
+  await assert.rejects(initCodexBrain(projectRoot), /Multiple Brainerd managed blocks/);
+  await assert.rejects(fs.access(path.join(projectRoot, "brain")), /ENOENT/);
+});
+
 test("initCodexBrain applies bootstrap when requested and syncs the index", async () => {
   const projectRoot = await tempProject("scratch");
   await fs.writeFile(

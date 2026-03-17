@@ -10,7 +10,7 @@ import {
   PACKAGE_VERSION,
   PRINCIPLES_ENTRYPOINT,
 } from "./constants.js";
-import { exists, readFileIfPresent } from "./fs-helpers.js";
+import { exists, normalizeRepoRelativePath, readFileIfPresent, resolveSafeRepoPath } from "./fs-helpers.js";
 import { toPortablePath } from "./project-root.js";
 
 export type BrainState = {
@@ -70,13 +70,16 @@ const walkFiles = async (root: string): Promise<string[]> => {
 
 const starterFiles = async (): Promise<string[]> => {
   const files = await walkFiles(STARTER_BRAIN_ROOT);
-  return files.sort((a, b) => a.localeCompare(b));
+  return files
+    .filter((file) => {
+      const relativePath = toPortablePath(path.relative(path.dirname(STARTER_BRAIN_ROOT), file));
+      return !relativePath.startsWith(`${NOTES_DIR}/`);
+    })
+    .sort((a, b) => a.localeCompare(b));
 };
 
 const starterRelativePath = (file: string): string =>
   toPortablePath(path.relative(path.dirname(STARTER_BRAIN_ROOT), file));
-
-const toProjectPath = (projectRoot: string, relativePath: string): string => path.join(projectRoot, relativePath);
 
 const uniqueSorted = (items: string[]): string[] => Array.from(new Set(items)).sort((a, b) => a.localeCompare(b));
 
@@ -130,8 +133,8 @@ const staleLock = async (lockPath: string): Promise<boolean> => {
 };
 
 const withBrainLock = async <T>(projectRoot: string, work: () => Promise<T>): Promise<T> => {
-  const brainRoot = path.join(projectRoot, BRAIN_DIR);
-  const lockPath = path.join(brainRoot, LOCKFILE_NAME);
+  const brainRoot = await resolveSafeRepoPath(projectRoot, BRAIN_DIR);
+  const lockPath = await resolveSafeRepoPath(projectRoot, `${BRAIN_DIR}/${LOCKFILE_NAME}`);
   await fs.mkdir(brainRoot, { recursive: true });
 
   for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -160,7 +163,7 @@ const withBrainLock = async <T>(projectRoot: string, work: () => Promise<T>): Pr
 };
 
 const waitForUnlocked = async (projectRoot: string): Promise<void> => {
-  const lockPath = path.join(projectRoot, BRAIN_DIR, LOCKFILE_NAME);
+  const lockPath = await resolveSafeRepoPath(projectRoot, `${BRAIN_DIR}/${LOCKFILE_NAME}`);
 
   for (let attempt = 0; attempt < 50; attempt += 1) {
     if (!(await exists(lockPath))) {
@@ -177,9 +180,11 @@ const waitForUnlocked = async (projectRoot: string): Promise<void> => {
 };
 
 export const readBrainState = async (projectRoot: string): Promise<BrainState | null> => {
+  const statePath = await resolveSafeRepoPath(projectRoot, BRAIN_VERSION_FILE);
+  const legacyStatePath = await resolveSafeRepoPath(projectRoot, LEGACY_VERSION_FILE);
   const raw =
-    (await readFileIfPresent(path.join(projectRoot, BRAIN_VERSION_FILE))) ??
-    (await readFileIfPresent(path.join(projectRoot, LEGACY_VERSION_FILE)));
+    (await readFileIfPresent(statePath)) ??
+    (await readFileIfPresent(legacyStatePath));
   if (!raw) {
     return null;
   }
@@ -205,9 +210,11 @@ export const readBrainState = async (projectRoot: string): Promise<BrainState | 
 };
 
 const writeBrainState = async (projectRoot: string, state: BrainState): Promise<void> => {
-  await fs.mkdir(path.join(projectRoot, BRAIN_DIR), { recursive: true });
+  const brainRoot = await resolveSafeRepoPath(projectRoot, BRAIN_DIR);
+  const statePath = await resolveSafeRepoPath(projectRoot, BRAIN_VERSION_FILE);
+  await fs.mkdir(brainRoot, { recursive: true });
   await fs.writeFile(
-    path.join(projectRoot, BRAIN_VERSION_FILE),
+    statePath,
     JSON.stringify(
       {
         version: state.version,
@@ -233,7 +240,7 @@ export const initBrain = async (projectRoot: string): Promise<BrainInitResult> =
         continue;
       }
 
-      const destination = toProjectPath(projectRoot, relativePath);
+      const destination = await resolveSafeRepoPath(projectRoot, relativePath);
       if (await exists(destination)) {
         preserved.push(relativePath);
         continue;
@@ -290,7 +297,7 @@ const parseSummary = (content: string): string => {
 };
 
 const readPrinciples = async (projectRoot: string): Promise<PrincipleDescriptor[]> => {
-  const principlesRoot = path.join(projectRoot, "brain/principles");
+  const principlesRoot = await resolveSafeRepoPath(projectRoot, "brain/principles");
   if (!(await exists(principlesRoot))) {
     return [];
   }
@@ -314,7 +321,7 @@ const readPrinciples = async (projectRoot: string): Promise<PrincipleDescriptor[
 };
 
 const readNotes = async (projectRoot: string): Promise<string[]> => {
-  const notesRoot = path.join(projectRoot, NOTES_DIR);
+  const notesRoot = await resolveSafeRepoPath(projectRoot, NOTES_DIR);
   if (!(await exists(notesRoot))) {
     return [];
   }
@@ -388,7 +395,8 @@ const buildIndexEntrypoint = (principles: PrincipleDescriptor[], notes: string[]
   return lines.join("\n");
 };
 
-const writeIfChanged = async (target: string, content: string): Promise<boolean> => {
+const writeIfChanged = async (projectRoot: string, relativePath: string, content: string): Promise<boolean> => {
+  const target = await resolveSafeRepoPath(projectRoot, relativePath);
   const current = await readFileIfPresent(target);
   if (current === content) {
     return false;
@@ -407,7 +415,8 @@ const syncOwnedEntryPointsUnlocked = async (projectRoot: string, state: BrainSta
   if (state.ownedFiles.includes(PRINCIPLES_ENTRYPOINT)) {
     if (
       await writeIfChanged(
-        path.join(projectRoot, PRINCIPLES_ENTRYPOINT),
+        projectRoot,
+        PRINCIPLES_ENTRYPOINT,
         buildPrinciplesEntrypoint(principles),
       )
     ) {
@@ -418,7 +427,7 @@ const syncOwnedEntryPointsUnlocked = async (projectRoot: string, state: BrainSta
   }
 
   if (state.ownedFiles.includes(INDEX_ENTRYPOINT)) {
-    if (await writeIfChanged(path.join(projectRoot, INDEX_ENTRYPOINT), buildIndexEntrypoint(principles, notes))) {
+    if (await writeIfChanged(projectRoot, INDEX_ENTRYPOINT, buildIndexEntrypoint(principles, notes))) {
       updated.push(INDEX_ENTRYPOINT);
     }
   } else {
@@ -452,8 +461,8 @@ export const syncOwnedEntryPoints = async (projectRoot: string): Promise<BrainSy
 
 export const readEntrypoints = async (projectRoot: string): Promise<{ index: string; principles: string } | null> => {
   await waitForUnlocked(projectRoot);
-  const index = await readFileIfPresent(path.join(projectRoot, INDEX_ENTRYPOINT));
-  const principles = await readFileIfPresent(path.join(projectRoot, PRINCIPLES_ENTRYPOINT));
+  const index = await readFileIfPresent(await resolveSafeRepoPath(projectRoot, INDEX_ENTRYPOINT));
+  const principles = await readFileIfPresent(await resolveSafeRepoPath(projectRoot, PRINCIPLES_ENTRYPOINT));
   if (!index || !principles) {
     return null;
   }
@@ -465,7 +474,7 @@ export const writeNoteIfMissing = async (
   noteRelativePath: string,
   content: string,
 ): Promise<BrainNoteWriteResult> => {
-  const portablePath = toPortablePath(noteRelativePath);
+  const portablePath = normalizeRepoRelativePath(noteRelativePath);
   if (!portablePath.startsWith(`${NOTES_DIR}/`) || !portablePath.endsWith(".md")) {
     throw new Error(`Notes must live under ${NOTES_DIR}/ and end in .md`);
   }
@@ -476,7 +485,7 @@ export const writeNoteIfMissing = async (
       throw new Error("No project brain found. Run /brain-init first.");
     }
 
-    const destination = path.join(projectRoot, portablePath);
+    const destination = await resolveSafeRepoPath(projectRoot, portablePath);
     if (await exists(destination)) {
       return { created: false, synced: [] };
     }
@@ -497,7 +506,7 @@ export const applyBrainChanges = async (
   changes: BrainChange[],
 ): Promise<ApplyBrainChangesResult> => {
   const normalizedChanges = changes.map((change) => ({
-    path: toPortablePath(change.path),
+    path: normalizeRepoRelativePath(change.path),
     content: ensureTrailingNewline(change.content),
   }));
 
@@ -522,8 +531,7 @@ export const applyBrainChanges = async (
 
     const changed: string[] = [];
     for (const change of normalizedChanges) {
-      const target = path.join(projectRoot, change.path);
-      if (await writeIfChanged(target, change.content)) {
+      if (await writeIfChanged(projectRoot, change.path, change.content)) {
         changed.push(change.path);
       }
     }

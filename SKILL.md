@@ -1,12 +1,16 @@
 ---
 name: brainerd
-description: Manage a repo-local Brainerd brain in Codex. Use when the user wants to initialize Brainerd in a repo, reflect durable knowledge from the current Codex conversation, or ruminate on older repo-scoped Codex sessions to improve repo memory.
+description: "Use Brainerd for explicit repo-memory actions in Codex: initialize a repo brain, reflect durable knowledge from the current conversation, or ruminate on older repo-scoped Codex sessions. Repos that already have a brain may load Brainerd ambiently without invoking this skill."
 license: MIT
 ---
 
 # Brainerd
 
-Use this skill to manage the repo-local `brain/` from Codex.
+Brainerd may already be ambient in repos that have a brain. In that case,
+Codex should already be reading `brain/index.md` and `brain/principles.md`
+before non-trivial work.
+
+Use this skill for explicit Brainerd actions that change or stage repo memory.
 
 This skill covers three jobs:
 
@@ -16,6 +20,8 @@ This skill covers three jobs:
 
 ## Choose the mode
 
+- If the repo already has a Brainerd brain, ambient read behavior should already
+  be active. You do not need this skill just to make Codex read the brain.
 - If the user wants to set up Brainerd in this repo, use `init`.
 - If the user wants to preserve something from the current Codex thread, use
   `reflect`.
@@ -43,6 +49,8 @@ Rules:
 - Only `init` may edit `AGENTS.md`.
 - Only the managed Brainerd block in `AGENTS.md` may be edited.
 - If multiple managed Brainerd blocks exist, stop and surface the error.
+- Do not initialize Brainerd silently. If the repo has no brain yet, suggest
+  `brainerd-init` rather than auto-writing one.
 
 ## Reflect
 
