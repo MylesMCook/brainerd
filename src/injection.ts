@@ -40,7 +40,7 @@ const truncateText = (text: string, maxBytes: number, maxLines: number, footer: 
 
 const composeFullContext = (indexText: string, principlesText: string): string =>
   [
-    "[brainmaxx]",
+    "[brainerd]",
     "A project brain is present. Use this as durable repo memory.",
     "",
     "# brain/index.md",
@@ -53,7 +53,7 @@ const composeFullContext = (indexText: string, principlesText: string): string =
 
 const composePrinciplesOnly = (principlesText: string): string =>
   [
-    "[brainmaxx]",
+    "[brainerd]",
     "A project brain is present. `brain/index.md` was omitted from ambient context",
     "because the entrypoints exceeded the size guard. Open it directly if you need it.",
     "",
@@ -80,14 +80,14 @@ export const buildInjectedBrainMessage = (
   }
 
   const header = [
-    "[brainmaxx]",
+    "[brainerd]",
     "A project brain is present. Ambient context exceeded the size guard, so only",
     "a truncated slice of `brain/principles.md` is injected. Open the file directly",
     "if you need the full text.",
     "",
     "# brain/principles.md",
   ].join("\n");
-  const footer = "[brainmaxx] `brain/principles.md` was truncated to fit the ambient context budget.";
+  const footer = "[brainerd] `brain/principles.md` was truncated to fit the ambient context budget.";
   const truncatedPrinciples = truncateText(
     principlesText.trim(),
     maxBytes - Buffer.byteLength(`${header}\n`, "utf8"),

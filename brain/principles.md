@@ -1,6 +1,6 @@
 # Principles
 
-<!-- Managed by pi-brainmaxx when this file is package-owned. Edit linked
+<!-- Managed by pi-brainerd when this file is package-owned. Edit linked
 principle files instead of editing this entrypoint directly. -->
 
 Read this file first, then open the linked principle files that matter to the

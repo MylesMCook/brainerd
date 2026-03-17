@@ -1,12 +1,12 @@
 ---
-name: brainmaxx-init
+name: brainerd-init
 license: MIT
-description: Initialize a repo-local brainmaxx brain for Codex. Use when the user asks to set up brainmaxx in a repo, create the repo brain, or install the managed AGENTS.md block that tells Codex to read the brain entrypoints.
+description: Initialize a repo-local brainerd brain for Codex. Use when the user asks to set up brainerd in a repo, create the repo brain, or install the managed AGENTS.md block that tells Codex to read the brain entrypoints.
 ---
 
-# Brainmaxx Init
+# Brainerd Init
 
-Use this skill to initialize brainmaxx for Codex in the current repo.
+Use this skill to initialize brainerd for Codex in the current repo.
 
 ## Workflow
 
@@ -30,10 +30,10 @@ node --import tsx ../../src/codex-cli.ts init --apply-bootstrap
 ## Rules
 
 - Only this skill may edit `AGENTS.md`, and only through the managed
-  `brainmaxx` block.
+  `brainerd` block.
 - Do not edit any repo files outside `brain/` and the managed `AGENTS.md`
   block.
-- If `AGENTS.md` contains multiple `brainmaxx` managed blocks, stop and surface
+- If `AGENTS.md` contains multiple `brainerd` managed blocks, stop and surface
   the error instead of editing the file.
 - End with a short summary of what was created, what was preserved, and whether
   bootstrap was only previewed or actually applied.

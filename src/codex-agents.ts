@@ -2,8 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { readFileIfPresent } from "./fs-helpers.js";
 
-export const BRAINMAXX_AGENTS_BLOCK_START = "<!-- brainmaxx:start -->";
-export const BRAINMAXX_AGENTS_BLOCK_END = "<!-- brainmaxx:end -->";
+export const BRAINERD_AGENTS_BLOCK_START = "<!-- brainerd:start -->";
+export const BRAINERD_AGENTS_BLOCK_END = "<!-- brainerd:end -->";
+export const LEGACY_MANAGED_BLOCK_START = "<!-- brainmaxx:start -->";
+export const LEGACY_MANAGED_BLOCK_END = "<!-- brainmaxx:end -->";
 
 export type CodexAgentsUpdateResult = {
   status: "created" | "updated" | "unchanged";
@@ -20,37 +22,45 @@ const AGENTS_FILE = "AGENTS.md";
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const blockRegex = new RegExp(
-  `${escapeRegex(BRAINMAXX_AGENTS_BLOCK_START)}[\\s\\S]*?${escapeRegex(BRAINMAXX_AGENTS_BLOCK_END)}`,
-  "g",
-);
+const blockRegexes = [
+  new RegExp(
+    `${escapeRegex(BRAINERD_AGENTS_BLOCK_START)}[\\s\\S]*?${escapeRegex(BRAINERD_AGENTS_BLOCK_END)}`,
+    "g",
+  ),
+  new RegExp(
+    `${escapeRegex(LEGACY_MANAGED_BLOCK_START)}[\\s\\S]*?${escapeRegex(LEGACY_MANAGED_BLOCK_END)}`,
+    "g",
+  ),
+];
 
 const normalizeTrailingNewline = (value: string): string => (value.endsWith("\n") ? value : `${value}\n`);
 
 const findManagedBlocks = (content: string): BlockMatch[] => {
   const matches: BlockMatch[] = [];
-  for (const match of content.matchAll(blockRegex)) {
-    if (match.index === undefined) {
-      continue;
+  for (const regex of blockRegexes) {
+    for (const match of content.matchAll(regex)) {
+      if (match.index === undefined) {
+        continue;
+      }
+      matches.push({ start: match.index, end: match.index + match[0].length });
     }
-    matches.push({ start: match.index, end: match.index + match[0].length });
   }
-  return matches;
+  return matches.sort((a, b) => a.start - b.start);
 };
 
 export const renderCodexAgentsBlock = (): string =>
   [
-    BRAINMAXX_AGENTS_BLOCK_START,
-    "brainmaxx managed block",
+    BRAINERD_AGENTS_BLOCK_START,
+    "brainerd managed block",
     "",
     "Before non-trivial repo work, read `brain/index.md` and `brain/principles.md`.",
     "Treat them as durable repo memory. Edit linked principle files or notes, not",
     "the generated entrypoints themselves.",
-    BRAINMAXX_AGENTS_BLOCK_END,
+    BRAINERD_AGENTS_BLOCK_END,
   ].join("\n");
 
 export const stripCodexManagedBlock = (content: string): string => {
-  const stripped = content.replace(blockRegex, "").replace(/\n{3,}/g, "\n\n").trim();
+  const stripped = blockRegexes.reduce((next, regex) => next.replace(regex, ""), content).replace(/\n{3,}/g, "\n\n").trim();
   return stripped === "" ? "" : `${stripped}\n`;
 };
 
@@ -68,7 +78,7 @@ export const updateCodexAgentsContent = (content: string | null): CodexAgentsUpd
 
   const blocks = findManagedBlocks(content);
   if (blocks.length > 1) {
-    throw new Error(`Multiple brainmaxx managed blocks found in ${AGENTS_FILE}. Clean them up manually before re-running brainmaxx-init.`);
+    throw new Error(`Multiple Brainerd managed blocks found in ${AGENTS_FILE}. Clean them up manually before re-running brainerd-init.`);
   }
 
   const normalizedContent = normalizeTrailingNewline(content);

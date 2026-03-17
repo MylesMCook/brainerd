@@ -12,7 +12,7 @@ import {
 } from "../src/codex-stage.js";
 
 const tempRepo = async (): Promise<string> => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-codex-stage-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-codex-stage-"));
   await fs.writeFile(path.join(root, ".git"), "gitdir: fake\n");
   await initBrain(root);
   return root;

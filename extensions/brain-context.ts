@@ -16,23 +16,23 @@ import { findGitRoot, resolveProjectRoot } from "../src/project-root.js";
 import { collectRepoSessions } from "../src/sessions.js";
 
 const APPLY_BOOTSTRAP_FLAG = "--apply-bootstrap";
-const BRAINTYPE_CONTEXT = "brainmaxx-context";
-const BRAINTYPE_STATUS = "brainmaxx-status";
-const BRAINTYPE_STAGE = "brainmaxx-ruminate-stage";
-const SUMMARY_MARKER = "Brainmaxx summary:";
+const BRAINTYPE_CONTEXT = "brainerd-context";
+const BRAINTYPE_STATUS = "brainerd-status";
+const BRAINTYPE_STAGE = "brainerd-ruminate-stage";
+const SUMMARY_MARKER = "Brainerd summary:";
 
 const BUILTIN_DEFAULT_TOOLS = ["read", "bash", "edit", "write", "find", "grep", "ls"];
-const REFLECT_TOOLS = ["read", "find", "grep", "brainmaxx_current_session", "brainmaxx_apply_changes"];
-const RUMINATE_PREVIEW_TOOLS = ["read", "find", "grep", "brainmaxx_repo_sessions", "brainmaxx_stage_ruminate"];
-const RUMINATE_APPLY_TOOLS = ["read", "find", "grep", "brainmaxx_get_staged_ruminate", "brainmaxx_apply_changes"];
+const REFLECT_TOOLS = ["read", "find", "grep", "brainerd_current_session", "brainerd_apply_changes"];
+const RUMINATE_PREVIEW_TOOLS = ["read", "find", "grep", "brainerd_repo_sessions", "brainerd_stage_ruminate"];
+const RUMINATE_APPLY_TOOLS = ["read", "find", "grep", "brainerd_get_staged_ruminate", "brainerd_apply_changes"];
 const BLOCKED_RUN_TOOLS = new Set(["write", "edit", "bash"]);
-const INTERNAL_BRAINMAXX_TOOLS = new Set([
-  "brainmaxx_sync_entrypoints",
-  "brainmaxx_current_session",
-  "brainmaxx_repo_sessions",
-  "brainmaxx_stage_ruminate",
-  "brainmaxx_get_staged_ruminate",
-  "brainmaxx_apply_changes",
+const INTERNAL_BRAINERD_TOOLS = new Set([
+  "brainerd_sync_entrypoints",
+  "brainerd_current_session",
+  "brainerd_repo_sessions",
+  "brainerd_stage_ruminate",
+  "brainerd_get_staged_ruminate",
+  "brainerd_apply_changes",
 ]);
 const CONFIRM_PHRASES = new Set(["yes", "apply it", "apply those findings", "go ahead", "confirm"]);
 const REJECT_PHRASES = new Set(["no", "cancel", "discard", "dont apply", "don't apply"]);
@@ -270,28 +270,28 @@ const formatRunSummary = (result: RunResult | null): string => {
 const renderRunInstructions = (mode: RunMode, stage: RuminateStage | null): string => {
   if (mode === "reflect") {
     return [
-      "[brainmaxx reflect run]",
-      "Use only read/find/grep plus brainmaxx_current_session and brainmaxx_apply_changes.",
+      "[brainerd reflect run]",
+      "Use only read/find/grep plus brainerd_current_session and brainerd_apply_changes.",
       "Do not use generic write, edit, or bash tools.",
-      "Decide the smallest durable brain change, apply it with brainmaxx_apply_changes, and end with a visible section that starts exactly with 'Brainmaxx summary:'.",
+      "Decide the smallest durable brain change, apply it with brainerd_apply_changes, and end with a visible section that starts exactly with 'Brainerd summary:'.",
     ].join("\n");
   }
 
   if (mode === "ruminate-preview") {
     return [
-      "[brainmaxx ruminate preview run]",
-      "Use brainmaxx_repo_sessions, then stage a preview with brainmaxx_stage_ruminate.",
+      "[brainerd ruminate preview run]",
+      "Use brainerd_repo_sessions, then stage a preview with brainerd_stage_ruminate.",
       "Do not write directly to files in this phase.",
-      "End with a visible section that starts exactly with 'Brainmaxx summary:' and state explicitly that no brain changes were written yet.",
+      "End with a visible section that starts exactly with 'Brainerd summary:' and state explicitly that no brain changes were written yet.",
     ].join("\n");
   }
 
   return [
-    "[brainmaxx ruminate apply run]",
+    "[brainerd ruminate apply run]",
     stage ? `Apply exactly staged preview ${stage.stageId}.` : "If no staged preview exists, stop and report that no brain changes were written.",
-    "Call brainmaxx_get_staged_ruminate first, then apply that staged proposal with brainmaxx_apply_changes.",
+    "Call brainerd_get_staged_ruminate first, then apply that staged proposal with brainerd_apply_changes.",
     "Do not invent new changes in apply mode.",
-    "End with a visible section that starts exactly with 'Brainmaxx summary:'.",
+    "End with a visible section that starts exactly with 'Brainerd summary:'.",
   ].join("\n");
 };
 
@@ -397,7 +397,7 @@ export default function brainContext(pi: ExtensionAPI): void {
           report(message, "warning", ctx);
           return;
         }
-        report(`pi-brainmaxx failed to initialize the brain: ${message}`, "error", ctx);
+        report(`pi-brainerd failed to initialize the brain: ${message}`, "error", ctx);
       }
     },
   });
@@ -413,7 +413,7 @@ export default function brainContext(pi: ExtensionAPI): void {
     const skillInvocation = parseSkillInvocation(event.text);
 
     if ((!ctx.isIdle() && skillInvocation) || (!ctx.isIdle() && staged && (CONFIRM_PHRASES.has(normalized) || REJECT_PHRASES.has(normalized)))) {
-      emitStatus(pi, "Brainmaxx runs must start when Pi is idle. Wait for the current turn to finish, then try again.", ctx.hasUI);
+      emitStatus(pi, "Brainerd runs must start when Pi is idle. Wait for the current turn to finish, then try again.", ctx.hasUI);
       return { action: "handled" as const };
     }
 
@@ -485,18 +485,18 @@ export default function brainContext(pi: ExtensionAPI): void {
       };
     } catch (error) {
       if (ctx.hasUI) {
-        ctx.ui.notify(`pi-brainmaxx skipped ambient brain loading: ${(error as Error).message}`, "warning");
+        ctx.ui.notify(`pi-brainerd skipped ambient brain loading: ${(error as Error).message}`, "warning");
       }
-      console.warn(`pi-brainmaxx skipped ambient brain loading: ${(error as Error).message}`);
+      console.warn(`pi-brainerd skipped ambient brain loading: ${(error as Error).message}`);
       return;
     }
   });
 
   pi.on("tool_call", async (event) => {
-    if (!activeRun && INTERNAL_BRAINMAXX_TOOLS.has(event.toolName)) {
+    if (!activeRun && INTERNAL_BRAINERD_TOOLS.has(event.toolName)) {
       return {
         block: true,
-        reason: `brainmaxx internal tool ${event.toolName} is only available during an explicit /reflect or /ruminate run.`,
+        reason: `brainerd internal tool ${event.toolName} is only available during an explicit /reflect or /ruminate run.`,
       };
     }
 
@@ -508,14 +508,14 @@ export default function brainContext(pi: ExtensionAPI): void {
     if (!allowedTools.has(event.toolName)) {
       return {
         block: true,
-        reason: `brainmaxx skill run active: ${event.toolName} is not available in ${activeRun.mode}.`,
+        reason: `brainerd skill run active: ${event.toolName} is not available in ${activeRun.mode}.`,
       };
     }
 
     if (BLOCKED_RUN_TOOLS.has(event.toolName)) {
       return {
         block: true,
-        reason: `brainmaxx skill run active: ${event.toolName} is blocked. Use the brainmaxx tools instead.`,
+        reason: `brainerd skill run active: ${event.toolName} is blocked. Use the brainerd tools instead.`,
       };
     }
   });
@@ -537,7 +537,7 @@ export default function brainContext(pi: ExtensionAPI): void {
   });
 
   pi.registerTool({
-    name: "brainmaxx_sync_entrypoints",
+    name: "brainerd_sync_entrypoints",
     label: "Sync brain entrypoints",
     description: "Regenerate package-owned brain entrypoints after approved brain changes",
     parameters: Type.Object({}),
@@ -557,7 +557,7 @@ export default function brainContext(pi: ExtensionAPI): void {
   });
 
   pi.registerTool({
-    name: "brainmaxx_current_session",
+    name: "brainerd_current_session",
     label: "Current Pi session",
     description: "Return a normalized transcript of the current Pi session before the active reflect invocation",
     parameters: Type.Object({}),
@@ -573,7 +573,7 @@ export default function brainContext(pi: ExtensionAPI): void {
         `messages: ${snapshot.messageCount}`,
         `models: ${snapshot.assistantModels.length > 0 ? snapshot.assistantModels.join(", ") : "unknown"}`,
         "",
-        snapshot.transcript || "[brainmaxx] No readable current-session transcript was found before this reflect invocation.",
+        snapshot.transcript || "[brainerd] No readable current-session transcript was found before this reflect invocation.",
       ];
       return {
         content: [{ type: "text", text: lines.join("\n") }],
@@ -583,7 +583,7 @@ export default function brainContext(pi: ExtensionAPI): void {
   });
 
   pi.registerTool({
-    name: "brainmaxx_repo_sessions",
+    name: "brainerd_repo_sessions",
     label: "Repo Pi sessions",
     description: "Load repo-scoped Pi session transcripts for rumination",
     parameters: Type.Object({
@@ -612,7 +612,7 @@ export default function brainContext(pi: ExtensionAPI): void {
           `cwd: ${session.cwd}`,
           `messages: ${session.messageCount}`,
           `models: ${session.assistantModels.length > 0 ? session.assistantModels.join(", ") : "unknown"}`,
-          session.transcript || "[brainmaxx] No readable conversation text found.",
+          session.transcript || "[brainerd] No readable conversation text found.",
         );
       }
 
@@ -624,7 +624,7 @@ export default function brainContext(pi: ExtensionAPI): void {
   });
 
   pi.registerTool({
-    name: "brainmaxx_stage_ruminate",
+    name: "brainerd_stage_ruminate",
     label: "Stage rumination findings",
     description: "Persist a preview of proposed rumination changes for later confirmation",
     parameters: Type.Object({
@@ -666,7 +666,7 @@ export default function brainContext(pi: ExtensionAPI): void {
   });
 
   pi.registerTool({
-    name: "brainmaxx_get_staged_ruminate",
+    name: "brainerd_get_staged_ruminate",
     label: "Get staged rumination preview",
     description: "Return the latest staged rumination preview for the current session",
     parameters: Type.Object({}),
@@ -695,7 +695,7 @@ export default function brainContext(pi: ExtensionAPI): void {
   });
 
   pi.registerTool({
-    name: "brainmaxx_apply_changes",
+    name: "brainerd_apply_changes",
     label: "Apply validated brain changes",
     description: "Apply note or principle updates under brain/ and regenerate entrypoints",
     parameters: Type.Object({
@@ -725,7 +725,7 @@ export default function brainContext(pi: ExtensionAPI): void {
       }
 
       if (changes.length === 0) {
-        throw new Error("brainmaxx_apply_changes requires either changes or a staged stageId.");
+        throw new Error("brainerd_apply_changes requires either changes or a staged stageId.");
       }
 
       const result = await applyBrainChanges(projectRoot, changes);

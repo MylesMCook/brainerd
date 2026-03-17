@@ -5,6 +5,7 @@ import {
   BRAIN_DIR,
   BRAIN_VERSION_FILE,
   INDEX_ENTRYPOINT,
+  LEGACY_VERSION_FILE,
   NOTES_DIR,
   PACKAGE_VERSION,
   PRINCIPLES_ENTRYPOINT,
@@ -45,7 +46,7 @@ export type ApplyBrainChangesResult = {
 };
 
 const STARTER_BRAIN_ROOT = fileURLToPath(new URL("../brain", import.meta.url));
-const LOCKFILE_NAME = ".brainmaxx.lock";
+const LOCKFILE_NAME = ".brainerd.lock";
 const LOCK_STALE_MS = 30_000;
 const LOCK_INVALID_STALE_MS = 250;
 
@@ -176,7 +177,9 @@ const waitForUnlocked = async (projectRoot: string): Promise<void> => {
 };
 
 export const readBrainState = async (projectRoot: string): Promise<BrainState | null> => {
-  const raw = await readFileIfPresent(path.join(projectRoot, BRAIN_VERSION_FILE));
+  const raw =
+    (await readFileIfPresent(path.join(projectRoot, BRAIN_VERSION_FILE))) ??
+    (await readFileIfPresent(path.join(projectRoot, LEGACY_VERSION_FILE)));
   if (!raw) {
     return null;
   }
@@ -193,7 +196,11 @@ export const readBrainState = async (projectRoot: string): Promise<BrainState | 
 
   return {
     version: parsed.version,
-    ownedFiles: uniqueSorted(parsed.ownedFiles.filter((item): item is string => typeof item === "string")),
+    ownedFiles: uniqueSorted(
+      parsed.ownedFiles
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => (item === LEGACY_VERSION_FILE ? BRAIN_VERSION_FILE : item)),
+    ),
   };
 };
 
@@ -210,6 +217,7 @@ const writeBrainState = async (projectRoot: string, state: BrainState): Promise<
       2,
     ) + "\n",
   );
+  await fs.rm(path.join(projectRoot, LEGACY_VERSION_FILE), { force: true });
 };
 
 export const initBrain = async (projectRoot: string): Promise<BrainInitResult> => {
@@ -321,7 +329,7 @@ const buildPrinciplesEntrypoint = (principles: PrincipleDescriptor[]): string =>
   const lines = [
     "# Principles",
     "",
-    "<!-- Managed by pi-brainmaxx when this file is package-owned. Edit linked",
+    "<!-- Managed by pi-brainerd when this file is package-owned. Edit linked",
     "principle files instead of editing this entrypoint directly. -->",
     "",
     "Read this file first, then open the linked principle files that matter to the",
@@ -345,7 +353,7 @@ const buildIndexEntrypoint = (principles: PrincipleDescriptor[], notes: string[]
   const lines = [
     "# Brain",
     "",
-    "<!-- Managed by pi-brainmaxx when this file is package-owned. Edit linked",
+    "<!-- Managed by pi-brainerd when this file is package-owned. Edit linked",
     "principle files or notes instead of editing this entrypoint directly. -->",
     "",
     "This project brain stores durable repo memory.",

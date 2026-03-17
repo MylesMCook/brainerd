@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-With regard to the core idea, `pi-brainmaxx` is inspired by:
+With regard to the core idea, `Brainerd` is inspired by:
 
 - `brainmaxxing` by poteto: <https://github.com/poteto/brainmaxxing>
 

@@ -4,15 +4,15 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
-  BRAINMAXX_AGENTS_BLOCK_END,
-  BRAINMAXX_AGENTS_BLOCK_START,
+  BRAINERD_AGENTS_BLOCK_END,
+  BRAINERD_AGENTS_BLOCK_START,
   stripCodexManagedBlock,
   updateCodexAgentsContent,
   upsertCodexAgentsBlock,
 } from "../src/codex-agents.js";
 
 const tempProject = async (): Promise<string> => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-codex-agents-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-codex-agents-"));
   await fs.writeFile(path.join(root, ".git"), "gitdir: fake\n");
   return root;
 };
@@ -21,7 +21,7 @@ test("updateCodexAgentsContent creates a minimal AGENTS.md block when the file i
   const result = updateCodexAgentsContent(null);
 
   assert.equal(result.status, "created");
-  assert.match(result.content, new RegExp(BRAINMAXX_AGENTS_BLOCK_START.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(result.content, new RegExp(BRAINERD_AGENTS_BLOCK_START.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.match(result.content, /brain\/index\.md/);
 });
 
@@ -30,24 +30,24 @@ test("updateCodexAgentsContent appends one managed block to an existing AGENTS.m
 
   assert.equal(result.status, "updated");
   assert.match(result.content, /# Repo Rules/);
-  assert.match(result.content, /<!-- brainmaxx:start -->/);
+  assert.match(result.content, /<!-- brainerd:start -->/);
 });
 
 test("updateCodexAgentsContent rejects duplicate managed blocks", () => {
   const agents = [
     "# Rules",
     "",
-    BRAINMAXX_AGENTS_BLOCK_START,
+    BRAINERD_AGENTS_BLOCK_START,
     "first",
-    BRAINMAXX_AGENTS_BLOCK_END,
+    BRAINERD_AGENTS_BLOCK_END,
     "",
-    BRAINMAXX_AGENTS_BLOCK_START,
+    BRAINERD_AGENTS_BLOCK_START,
     "second",
-    BRAINMAXX_AGENTS_BLOCK_END,
+    BRAINERD_AGENTS_BLOCK_END,
     "",
   ].join("\n");
 
-  assert.throws(() => updateCodexAgentsContent(agents), /Multiple brainmaxx managed blocks/);
+  assert.throws(() => updateCodexAgentsContent(agents), /Multiple Brainerd managed blocks/);
 });
 
 test("stripCodexManagedBlock removes the managed section before bootstrap reads AGENTS.md", () => {
@@ -57,9 +57,9 @@ test("stripCodexManagedBlock removes the managed section before bootstrap reads 
       "",
       "- Use tmux first.",
       "",
-      BRAINMAXX_AGENTS_BLOCK_START,
+      BRAINERD_AGENTS_BLOCK_START,
       "managed",
-      BRAINMAXX_AGENTS_BLOCK_END,
+      BRAINERD_AGENTS_BLOCK_END,
       "",
       "## Services",
       "",
@@ -68,7 +68,7 @@ test("stripCodexManagedBlock removes the managed section before bootstrap reads 
     ].join("\n"),
   );
 
-  assert.doesNotMatch(stripped, /brainmaxx:start/);
+  assert.doesNotMatch(stripped, /brainerd:start/);
   assert.match(stripped, /Use tmux first/);
   assert.match(stripped, /Grasshopper is preferred/);
 });

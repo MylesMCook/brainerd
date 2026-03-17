@@ -1,25 +1,26 @@
 {
-  "name": "@mmcook/pi-brainmaxx",
+  "name": "@mmcook/pi-brainerd",
   "version": "0.3.0",
-  "description": "A project brain for Pi: repo-local memory, reflection, and session-history rumination",
+  "description": "Brainerd for Pi: repo-local memory, reflection, and session-history rumination",
   "type": "module",
   "author": "Myles Cook <mylesmcook@gmail.com>",
   "license": "MIT",
-  "homepage": "https://github.com/MylesMCook/pi-brainmaxx",
+  "homepage": "https://github.com/MylesMCook/brainerd",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MylesMCook/pi-brainmaxx.git"
+    "url": "git+https://github.com/MylesMCook/brainerd.git"
   },
   "bugs": {
-    "url": "https://github.com/MylesMCook/pi-brainmaxx/issues"
+    "url": "https://github.com/MylesMCook/brainerd/issues"
   },
   "keywords": [
     "pi-package",
+    "brainerd",
+    "pi-brainerd",
     "pi",
     "codex",
     "project-brain",
-    "repo-memory",
-    "pi-memory"
+    "repo-memory"
   ],
   "engines": {
     "node": ">=20.6.0"

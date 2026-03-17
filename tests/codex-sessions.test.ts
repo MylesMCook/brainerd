@@ -23,7 +23,7 @@ const writeSession = async (
 };
 
 test("collectCodexRepoSessions returns only repo-scoped readable sessions and excludes the current thread", async () => {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-codex-sessions-"));
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-codex-sessions-"));
   const projectRoot = path.join(tempRoot, "repo");
   const childRoot = path.join(projectRoot, "src");
   const otherRoot = path.join(tempRoot, "other");
@@ -126,7 +126,7 @@ test("collectCodexRepoSessions returns only repo-scoped readable sessions and ex
 });
 
 test("collectCodexRepoSessions reports unsupported session metadata clearly", async () => {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-codex-sessions-"));
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-codex-sessions-"));
   const projectRoot = path.join(tempRoot, "repo");
   const sessionsRoot = path.join(tempRoot, "sessions");
 
@@ -157,7 +157,7 @@ test("collectCodexRepoSessions reports unsupported session metadata clearly", as
 });
 
 test("collectCodexRepoSessions reports insufficient readable history when fewer than five sessions exist", async () => {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-codex-sessions-"));
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-codex-sessions-"));
   const projectRoot = path.join(tempRoot, "repo");
   const sessionsRoot = path.join(tempRoot, "sessions");
 
@@ -208,7 +208,7 @@ test("assessCodexRuminationReadiness treats zero readable sessions as unsupporte
 });
 
 test("collectCurrentCodexSession returns the current thread transcript for the repo", async () => {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-codex-current-"));
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-codex-current-"));
   const projectRoot = path.join(tempRoot, "repo");
   const childRoot = path.join(projectRoot, "src");
   const sessionsRoot = path.join(tempRoot, "sessions");
@@ -271,7 +271,7 @@ test("collectCurrentCodexSession returns the current thread transcript for the r
 });
 
 test("collectCurrentCodexSession rejects a current thread from another repo", async () => {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-codex-current-"));
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-codex-current-"));
   const projectRoot = path.join(tempRoot, "repo");
   const otherRoot = path.join(tempRoot, "other");
   const sessionsRoot = path.join(tempRoot, "sessions");

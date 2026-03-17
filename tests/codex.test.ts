@@ -6,7 +6,7 @@ import path from "node:path";
 import { initCodexBrain, syncCodexBrain } from "../src/codex.js";
 
 const tempProject = async (name = "repo"): Promise<string> => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-codex-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-codex-"));
   const projectRoot = path.join(root, name);
   await fs.mkdir(projectRoot, { recursive: true });
   await fs.writeFile(path.join(projectRoot, ".git"), "gitdir: fake\n");
@@ -21,7 +21,7 @@ test("initCodexBrain creates a minimal AGENTS.md when missing and does not boots
 
   assert.ok(result.brain.created.includes("brain/index.md"));
   assert.equal(result.agents.status, "created");
-  assert.match(agentsText, /<!-- brainmaxx:start -->/);
+  assert.match(agentsText, /<!-- brainerd:start -->/);
   assert.equal(result.bootstrap.status, "none");
 });
 
@@ -42,7 +42,7 @@ test("initCodexBrain appends one managed block and previews operational bootstra
 
   assert.equal(result.agents.status, "updated");
   assert.match(agentsText, /tmux new-session -A -s beelink/);
-  assert.match(agentsText, /<!-- brainmaxx:start -->/);
+  assert.match(agentsText, /<!-- brainerd:start -->/);
   assert.equal(result.bootstrap.status, "ready");
   assert.match(result.bootstrap.content, /tmux new-session -A -s beelink/);
 });
@@ -70,7 +70,7 @@ test("syncCodexBrain preserves user-owned index files", async () => {
   const projectRoot = await tempProject();
   await initCodexBrain(projectRoot);
 
-  const statePath = path.join(projectRoot, "brain/.brainmaxx-version");
+  const statePath = path.join(projectRoot, "brain/.brainerd-version");
   const state = JSON.parse(await fs.readFile(statePath, "utf8")) as { version: string; ownedFiles: string[] };
   state.ownedFiles = state.ownedFiles.filter((file) => file !== "brain/index.md");
   await fs.writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`);

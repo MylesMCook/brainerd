@@ -8,7 +8,7 @@ import { exists } from "./fs-helpers.js";
 import { isSameOrDescendant, resolveProjectRoot } from "./project-root.js";
 
 const MAX_SESSION_HEADER_BYTES = 64 * 1024;
-const TRANSCRIPT_FOOTER = "\n[brainmaxx] Transcript truncated to fit the Codex session history budget.";
+const TRANSCRIPT_FOOTER = "\n[brainerd] Transcript truncated to fit the Codex session history budget.";
 const SUPPORTED_CODEX_ORIGINATORS = new Set(["codex_cli_rs", "codex_exec", "codex_vscode"]);
 
 export type CodexRepoSession = {

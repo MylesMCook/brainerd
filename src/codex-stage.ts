@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { applyBrainChanges, readBrainState, type ApplyBrainChangesResult, type BrainChange } from "./brain.js";
-import { CODEX_RUMINATE_STAGE_FILE } from "./constants.js";
+import { CODEX_RUMINATE_STAGE_FILE, LEGACY_RUMINATE_STAGE_FILE } from "./constants.js";
 
 export type CodexRuminateStage = {
   stageId: string;
@@ -23,6 +23,7 @@ export type CodexStageInput = {
 };
 
 const stagePath = (projectRoot: string): string => path.join(projectRoot, CODEX_RUMINATE_STAGE_FILE);
+const legacyStagePath = (projectRoot: string): string => path.join(projectRoot, LEGACY_RUMINATE_STAGE_FILE);
 
 const normalizeChanges = (changes: BrainChange[]): BrainChange[] =>
   changes
@@ -58,42 +59,46 @@ const writeStage = async (projectRoot: string, stage: CodexRuminateStage): Promi
   const target = stagePath(projectRoot);
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, `${JSON.stringify(stage, null, 2)}\n`);
+  await fs.rm(legacyStagePath(projectRoot), { force: true });
 };
 
 export const getCodexRuminateStage = async (projectRoot: string): Promise<CodexRuminateStage | null> => {
-  const target = stagePath(projectRoot);
-  try {
-    const raw = await fs.readFile(target, "utf8");
-    const parsed = JSON.parse(raw) as Partial<CodexRuminateStage>;
-    if (
-      typeof parsed.stageId !== "string" ||
-      typeof parsed.repoRoot !== "string" ||
-      typeof parsed.createdAt !== "string" ||
-      typeof parsed.findingsSummary !== "string" ||
-      typeof parsed.rationale !== "string" ||
-      !Array.isArray(parsed.changes) ||
-      (parsed.status !== "staged" && parsed.status !== "applied" && parsed.status !== "discarded")
-    ) {
-      throw new Error(`Malformed ${CODEX_RUMINATE_STAGE_FILE}`);
-    }
+  for (const target of [stagePath(projectRoot), legacyStagePath(projectRoot)]) {
+    try {
+      const raw = await fs.readFile(target, "utf8");
+      const parsed = JSON.parse(raw) as Partial<CodexRuminateStage>;
+      if (
+        typeof parsed.stageId !== "string" ||
+        typeof parsed.repoRoot !== "string" ||
+        typeof parsed.createdAt !== "string" ||
+        typeof parsed.findingsSummary !== "string" ||
+        typeof parsed.rationale !== "string" ||
+        !Array.isArray(parsed.changes) ||
+        (parsed.status !== "staged" && parsed.status !== "applied" && parsed.status !== "discarded")
+      ) {
+        throw new Error(`Malformed ${path.relative(projectRoot, target)}`);
+      }
 
-    return {
-      stageId: parsed.stageId,
-      repoRoot: parsed.repoRoot,
-      createdAt: parsed.createdAt,
-      findingsSummary: parsed.findingsSummary,
-      rationale: parsed.rationale,
-      changes: normalizeChanges(parsed.changes),
-      status: parsed.status,
-      changedFiles: Array.isArray(parsed.changedFiles) ? parsed.changedFiles.filter((item): item is string => typeof item === "string") : [],
-      syncedFiles: Array.isArray(parsed.syncedFiles) ? parsed.syncedFiles.filter((item): item is string => typeof item === "string") : [],
-    };
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return null;
+      return {
+        stageId: parsed.stageId,
+        repoRoot: parsed.repoRoot,
+        createdAt: parsed.createdAt,
+        findingsSummary: parsed.findingsSummary,
+        rationale: parsed.rationale,
+        changes: normalizeChanges(parsed.changes),
+        status: parsed.status,
+        changedFiles: Array.isArray(parsed.changedFiles) ? parsed.changedFiles.filter((item): item is string => typeof item === "string") : [],
+        syncedFiles: Array.isArray(parsed.syncedFiles) ? parsed.syncedFiles.filter((item): item is string => typeof item === "string") : [],
+      };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        continue;
+      }
+      throw error;
     }
-    throw error;
   }
+
+  return null;
 };
 
 export const stageCodexRuminate = async (
@@ -101,7 +106,7 @@ export const stageCodexRuminate = async (
   input: CodexStageInput,
 ): Promise<CodexRuminateStage> => {
   if (!(await readBrainState(projectRoot))) {
-    throw new Error("No project brain found. Run brainmaxx-init first.");
+    throw new Error("No project brain found. Run brainerd-init first.");
   }
 
   const validated = validateStageInput(input);

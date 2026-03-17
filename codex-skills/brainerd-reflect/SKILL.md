@@ -1,10 +1,10 @@
 ---
-name: brainmaxx-reflect
+name: brainerd-reflect
 license: MIT
-description: Persist durable learnings from the current Codex conversation into the repo-local brain. Use when the user explicitly asks to reflect with brainmaxx, capture durable knowledge from this Codex thread, or update repo memory from this conversation.
+description: Persist durable learnings from the current Codex conversation into the repo-local brain. Use when the user explicitly asks to reflect with brainerd, capture durable knowledge from this Codex thread, or update repo memory from this conversation.
 ---
 
-# Brainmaxx Reflect
+# Brainerd Reflect
 
 Persist durable knowledge from the current Codex conversation into the repo
 brain.
@@ -27,7 +27,7 @@ node --import tsx ../../src/codex-cli.ts current-session
    principle or preference.
 7. Otherwise target one focused note under `brain/notes/<kebab-case-topic>.md`.
 8. When you are ready to apply the change, write a small JSON payload to
-   `/tmp/brainmaxx-reflect.json` with this shape:
+   `/tmp/brainerd-reflect.json` with this shape:
 
 ```json
 {
@@ -43,7 +43,7 @@ node --import tsx ../../src/codex-cli.ts current-session
 9. Apply the change only through:
 
 ```bash
-node --import tsx ../../src/codex-cli.ts apply-changes --input /tmp/brainmaxx-reflect.json
+node --import tsx ../../src/codex-cli.ts apply-changes --input /tmp/brainerd-reflect.json
 ```
 
 ## Rules

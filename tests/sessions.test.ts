@@ -19,7 +19,7 @@ const writeSession = async (
 };
 
 test("collectRepoSessions returns only repo-scoped sessions and excludes the current session", async () => {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-sessions-"));
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-sessions-"));
   const projectRoot = path.join(tempRoot, "repo");
   const childCwd = path.join(projectRoot, "src");
   const otherRoot = path.join(tempRoot, "other");
@@ -60,7 +60,7 @@ test("collectRepoSessions returns only repo-scoped sessions and excludes the cur
 });
 
 test("collectRepoSessions reports unsupported Pi session versions as warnings", async () => {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-sessions-"));
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-sessions-"));
   const projectRoot = path.join(tempRoot, "repo");
   const sessionsRoot = path.join(tempRoot, "sessions");
 
@@ -81,7 +81,7 @@ test("collectRepoSessions reports unsupported Pi session versions as warnings", 
 });
 
 test("collectRepoSessions reports malformed session files as warnings", async () => {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-sessions-"));
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-sessions-"));
   const projectRoot = path.join(tempRoot, "repo");
   const sessionsRoot = path.join(tempRoot, "sessions");
   const directory = path.join(sessionsRoot, `--${projectRoot.replaceAll("/", "-")}--`);
@@ -101,7 +101,7 @@ test("collectRepoSessions reports malformed session files as warnings", async ()
 });
 
 test("collectRepoSessions skips malformed session bodies after a valid header", async () => {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-sessions-"));
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-sessions-"));
   const projectRoot = path.join(tempRoot, "repo");
   const sessionsRoot = path.join(tempRoot, "sessions");
   const directory = path.join(sessionsRoot, `--${projectRoot.replaceAll("/", "-")}--`);
@@ -132,7 +132,7 @@ test("collectRepoSessions skips malformed session bodies after a valid header", 
 });
 
 test("collectRepoSessions rejects oversized session headers clearly", async () => {
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-sessions-"));
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-sessions-"));
   const projectRoot = path.join(tempRoot, "repo");
   const sessionsRoot = path.join(tempRoot, "sessions");
   const directory = path.join(sessionsRoot, `--${projectRoot.replaceAll("/", "-")}--`);

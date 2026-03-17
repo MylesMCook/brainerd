@@ -1,6 +1,6 @@
 # Brain
 
-<!-- Managed by pi-brainmaxx when this file is package-owned. Edit linked
+<!-- Managed by pi-brainerd when this file is package-owned. Edit linked
 principle files or notes instead of editing this entrypoint directly. -->
 
 This project brain stores durable repo memory.

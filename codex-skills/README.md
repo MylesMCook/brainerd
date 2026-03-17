@@ -1,14 +1,14 @@
 # Codex skills
 
-These are the local Codex-side `brainmaxx` skills that sit next to the Pi
+These are the local Codex-side `Brainerd` skills that sit next to the Pi
 package.
 
 Install them by symlinking each skill into `~/.codex/skills/`:
 
 ```bash
-ln -s /absolute/path/to/pi-brainmaxx/codex-skills/brainmaxx-init ~/.codex/skills/brainmaxx-init
-ln -s /absolute/path/to/pi-brainmaxx/codex-skills/brainmaxx-reflect ~/.codex/skills/brainmaxx-reflect
-ln -s /absolute/path/to/pi-brainmaxx/codex-skills/brainmaxx-ruminate ~/.codex/skills/brainmaxx-ruminate
+ln -s /absolute/path/to/brainerd/codex-skills/brainerd-init ~/.codex/skills/brainerd-init
+ln -s /absolute/path/to/brainerd/codex-skills/brainerd-reflect ~/.codex/skills/brainerd-reflect
+ln -s /absolute/path/to/brainerd/codex-skills/brainerd-ruminate ~/.codex/skills/brainerd-ruminate
 ```
 
 The skills expect to live inside this repo so they can call:

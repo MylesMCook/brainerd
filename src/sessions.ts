@@ -150,7 +150,7 @@ const textFromContent = (content: unknown): string[] => {
   return parts;
 };
 
-const TRANSCRIPT_FOOTER = "\n[brainmaxx] Transcript truncated to fit the session history budget.";
+const TRANSCRIPT_FOOTER = "\n[brainerd] Transcript truncated to fit the session history budget.";
 
 const readSessionTranscript = async (
   file: string,

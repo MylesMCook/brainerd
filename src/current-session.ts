@@ -1,4 +1,4 @@
-const TRANSCRIPT_FOOTER = "\n[brainmaxx] Transcript truncated to fit the current-session budget.";
+const TRANSCRIPT_FOOTER = "\n[brainerd] Transcript truncated to fit the current-session budget.";
 
 type SessionManagerLike = {
   getBranch(fromId?: string): Array<any>;

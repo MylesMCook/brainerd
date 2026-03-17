@@ -1,10 +1,10 @@
 ---
-name: brainmaxx-ruminate
+name: brainerd-ruminate
 license: MIT
-description: Mine older Codex session history for repeated corrections, preferences, missed durable knowledge, and recurring failure patterns in the current repo. Use when the user explicitly asks to ruminate with brainmaxx, review older Codex repo history, or apply or discard a previously staged rumination preview.
+description: Mine older Codex session history for repeated corrections, preferences, missed durable knowledge, and recurring failure patterns in the current repo. Use when the user explicitly asks to ruminate with brainerd, review older Codex repo history, or apply or discard a previously staged rumination preview.
 ---
 
-# Brainmaxx Ruminate
+# Brainerd Ruminate
 
 Mine older Codex sessions for durable patterns the current brain has missed.
 
@@ -44,7 +44,7 @@ node --import tsx ../../src/codex-cli.ts repo-sessions
    knowledge, and recurring failure patterns.
 9. Present a concise findings summary first.
 10. If there is a real durable finding, write a small JSON payload to
-    `/tmp/brainmaxx-ruminate.json` with this shape:
+    `/tmp/brainerd-ruminate.json` with this shape:
 
 ```json
 {
@@ -62,7 +62,7 @@ node --import tsx ../../src/codex-cli.ts repo-sessions
 11. Stage the preview only through:
 
 ```bash
-node --import tsx ../../src/codex-cli.ts stage-ruminate --input /tmp/brainmaxx-ruminate.json
+node --import tsx ../../src/codex-cli.ts stage-ruminate --input /tmp/brainerd-ruminate.json
 ```
 
 12. Do not write brain files during the preview phase.

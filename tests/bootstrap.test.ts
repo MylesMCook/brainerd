@@ -7,7 +7,7 @@ import { initBrain } from "../src/brain.js";
 import { applyOperationalBootstrap, planOperationalBootstrap } from "../src/bootstrap.js";
 
 const tempProject = async (name = "repo"): Promise<string> => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-bootstrap-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-bootstrap-"));
   const projectRoot = path.join(root, name);
   await fs.mkdir(projectRoot, { recursive: true });
   await fs.mkdir(path.join(projectRoot, ".git"), { recursive: true });

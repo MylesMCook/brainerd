@@ -6,7 +6,7 @@ import path from "node:path";
 import { applyBrainChanges, initBrain, readBrainState, syncOwnedEntryPoints, writeNoteIfMissing } from "../src/brain.js";
 
 const tempProject = async (): Promise<string> => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-brain-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-brain-"));
   await fs.writeFile(path.join(root, ".git"), "gitdir: fake\n");
   return root;
 };
@@ -56,7 +56,7 @@ test("syncOwnedEntryPoints skips user-owned entrypoints", async () => {
   const projectRoot = await tempProject();
   await initBrain(projectRoot);
 
-  const statePath = path.join(projectRoot, "brain/.brainmaxx-version");
+  const statePath = path.join(projectRoot, "brain/.brainerd-version");
   const state = JSON.parse(await fs.readFile(statePath, "utf8")) as { version: string; ownedFiles: string[] };
   state.ownedFiles = state.ownedFiles.filter((file) => file !== "brain/index.md");
   await fs.writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`);
@@ -84,14 +84,14 @@ test("brain-init reclaims a stale lock file", async () => {
   const projectRoot = await tempProject();
   await fs.mkdir(path.join(projectRoot, "brain"), { recursive: true });
   await fs.writeFile(
-    path.join(projectRoot, "brain/.brainmaxx.lock"),
+    path.join(projectRoot, "brain/.brainerd.lock"),
     JSON.stringify({ pid: 999_999_999, createdAt: "2000-01-01T00:00:00.000Z" }),
   );
 
   const result = await initBrain(projectRoot);
 
   assert.ok(result.created.includes("brain/index.md"));
-  await assert.rejects(fs.access(path.join(projectRoot, "brain/.brainmaxx.lock")));
+  await assert.rejects(fs.access(path.join(projectRoot, "brain/.brainerd.lock")));
 });
 
 test("writeNoteIfMissing creates a note once and syncs the index", async () => {

@@ -70,7 +70,7 @@ const createApi = () => {
 };
 
 const tempRepo = async (): Promise<string> => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-ext-"));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-ext-"));
   await fs.writeFile(path.join(root, ".git"), "gitdir: fake\n");
   return root;
 };
@@ -130,12 +130,12 @@ test("brain-context registers the public commands and internal tools", () => {
   assert.deepEqual(
     [...tools.keys()].sort(),
     [
-      "brainmaxx_apply_changes",
-      "brainmaxx_current_session",
-      "brainmaxx_get_staged_ruminate",
-      "brainmaxx_repo_sessions",
-      "brainmaxx_stage_ruminate",
-      "brainmaxx_sync_entrypoints",
+      "brainerd_apply_changes",
+      "brainerd_current_session",
+      "brainerd_get_staged_ruminate",
+      "brainerd_repo_sessions",
+      "brainerd_stage_ruminate",
+      "brainerd_sync_entrypoints",
     ],
   );
 });
@@ -271,7 +271,7 @@ test("before_agent_start injects the ambient brain context when a brain exists",
   assert.ok(beforeStart);
 
   const result = await beforeStart?.[0]?.({}, { cwd: repoRoot, sessionManager: createSessionManager(), hasUI: false, ui: { notify() {} } });
-  assert.equal(result?.message?.customType, "brainmaxx-context");
+  assert.equal(result?.message?.customType, "brainerd-context");
   assert.match(result?.message?.content ?? "", /# brain\/index\.md/);
   assert.match(result?.message?.content ?? "", /# brain\/principles\.md/);
 });
@@ -287,7 +287,7 @@ test("input hook rewrites /reflect to /skill:reflect and narrows tools for the r
   );
 
   assert.deepEqual(result, { action: "transform", text: "/skill:reflect" });
-  assert.deepEqual(getActiveTools().sort(), ["brainmaxx_apply_changes", "brainmaxx_current_session", "find", "grep", "read"]);
+  assert.deepEqual(getActiveTools().sort(), ["brainerd_apply_changes", "brainerd_current_session", "find", "grep", "read"]);
 });
 
 test("input hook rewrites /ruminate to /skill:ruminate and restores tools after agent_end", async () => {
@@ -301,27 +301,27 @@ test("input hook rewrites /ruminate to /skill:ruminate and restores tools after 
     { isIdle: () => true, hasUI: true, sessionManager: createSessionManager({ leafId: "leaf-2" }), ui: { notify() {} } },
   );
 
-  assert.deepEqual(getActiveTools().sort(), ["brainmaxx_repo_sessions", "brainmaxx_stage_ruminate", "find", "grep", "read"]);
+  assert.deepEqual(getActiveTools().sort(), ["brainerd_repo_sessions", "brainerd_stage_ruminate", "find", "grep", "read"]);
 
   await endHandler?.({ messages: [{ role: "assistant", content: [{ type: "text", text: "Done" }] }] }, {});
 
   assert.deepEqual(getActiveTools(), BUILTIN_TOOL_NAMES);
-  assert.match(sentMessages[0]?.message.content ?? "", /Brainmaxx summary:/);
+  assert.match(sentMessages[0]?.message.content ?? "", /Brainerd summary:/);
 });
 
-test("brainmaxx internal tools are blocked outside explicit skill runs", async () => {
+test("brainerd internal tools are blocked outside explicit skill runs", async () => {
   const { api, handlers } = createApi();
   brainContext(api as any);
 
-  const result = await handlers.get("tool_call")?.[0]?.({ toolName: "brainmaxx_apply_changes" }, {});
+  const result = await handlers.get("tool_call")?.[0]?.({ toolName: "brainerd_apply_changes" }, {});
 
   assert.deepEqual(result, {
     block: true,
-    reason: "brainmaxx internal tool brainmaxx_apply_changes is only available during an explicit /reflect or /ruminate run.",
+    reason: "brainerd internal tool brainerd_apply_changes is only available during an explicit /reflect or /ruminate run.",
   });
 });
 
-test("brainmaxx tool guard blocks tools that do not match the active run mode", async () => {
+test("brainerd tool guard blocks tools that do not match the active run mode", async () => {
   const { api, handlers } = createApi();
   brainContext(api as any);
 
@@ -330,15 +330,15 @@ test("brainmaxx tool guard blocks tools that do not match the active run mode", 
     { isIdle: () => true, hasUI: true, sessionManager: createSessionManager({ leafId: "leaf-4" }), ui: { notify() {} } },
   );
 
-  const result = await handlers.get("tool_call")?.[0]?.({ toolName: "brainmaxx_apply_changes" }, {});
+  const result = await handlers.get("tool_call")?.[0]?.({ toolName: "brainerd_apply_changes" }, {});
 
   assert.deepEqual(result, {
     block: true,
-    reason: "brainmaxx skill run active: brainmaxx_apply_changes is not available in ruminate-preview.",
+    reason: "brainerd skill run active: brainerd_apply_changes is not available in ruminate-preview.",
   });
 });
 
-test("brainmaxx_current_session returns the pre-invocation branch transcript", async () => {
+test("brainerd_current_session returns the pre-invocation branch transcript", async () => {
   const { api, handlers, tools } = createApi();
   brainContext(api as any);
 
@@ -361,7 +361,7 @@ test("brainmaxx_current_session returns the pre-invocation branch transcript", a
     { isIdle: () => true, hasUI: true, sessionManager: createSessionManager({ branch, leafId: "leaf-3" }), ui: { notify() {} } },
   );
 
-  const result = await tools.get("brainmaxx_current_session")?.execute("tool", {}, undefined, undefined, {
+  const result = await tools.get("brainerd_current_session")?.execute("tool", {}, undefined, undefined, {
     cwd: "/tmp/project",
     sessionManager: createSessionManager({
       branch,
@@ -375,10 +375,10 @@ test("brainmaxx_current_session returns the pre-invocation branch transcript", a
   assert.match(result?.content?.[0]?.text ?? "", /Tool read result: brain\/index\.md contents/);
 });
 
-test("brainmaxx_repo_sessions tool returns repo-scoped session history", async () => {
+test("brainerd_repo_sessions tool returns repo-scoped session history", async () => {
   const { api, commands, tools } = createApi();
   const repoRoot = await tempRepo();
-  const homeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainmaxx-tool-home-"));
+  const homeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pi-brainerd-tool-home-"));
   const sessionsRoot = path.join(homeRoot, ".pi/agent/sessions");
   const sessionFile = path.join(sessionsRoot, "older.jsonl");
 
@@ -405,7 +405,7 @@ test("brainmaxx_repo_sessions tool returns repo-scoped session history", async (
   process.env.HOME = homeRoot;
 
   try {
-    const result = await tools.get("brainmaxx_repo_sessions")?.execute(
+    const result = await tools.get("brainerd_repo_sessions")?.execute(
       "tool",
       { maxSessions: 5, maxCharsPerSession: 1000 },
       undefined,
@@ -423,12 +423,12 @@ test("brainmaxx_repo_sessions tool returns repo-scoped session history", async (
   }
 });
 
-test("brainmaxx_stage_ruminate stores a recoverable preview and confirm transforms into apply mode", async () => {
+test("brainerd_stage_ruminate stores a recoverable preview and confirm transforms into apply mode", async () => {
   const { api, handlers, tools, customEntries, getActiveTools } = createApi();
   brainContext(api as any);
 
   const repoRoot = await tempRepo();
-  const stageResult = await tools.get("brainmaxx_stage_ruminate")?.execute(
+  const stageResult = await tools.get("brainerd_stage_ruminate")?.execute(
     "tool",
     {
       findingsSummary: "Remote workflow was repeated across sessions.",
@@ -455,7 +455,7 @@ test("brainmaxx_stage_ruminate stores a recoverable preview and confirm transfor
   );
 
   assert.deepEqual(result, { action: "transform", text: "/skill:ruminate" });
-  assert.deepEqual(getActiveTools().sort(), ["brainmaxx_apply_changes", "brainmaxx_get_staged_ruminate", "find", "grep", "read"]);
+  assert.deepEqual(getActiveTools().sort(), ["brainerd_apply_changes", "brainerd_get_staged_ruminate", "find", "grep", "read"]);
 });
 
 test("ruminate reject follow-up clears the stage without triggering a model turn", async () => {
@@ -464,7 +464,7 @@ test("ruminate reject follow-up clears the stage without triggering a model turn
 
   const staged = {
     type: "custom",
-    customType: "brainmaxx-ruminate-stage",
+    customType: "brainerd-ruminate-stage",
     data: {
       stageId: "stage-1",
       repoRoot: "/tmp/project",
@@ -496,7 +496,7 @@ test("ruminate confirm follow-up in print mode stays preview-only", async () => 
 
   const staged = {
     type: "custom",
-    customType: "brainmaxx-ruminate-stage",
+    customType: "brainerd-ruminate-stage",
     data: {
       stageId: "stage-print",
       repoRoot: "/tmp/project",
@@ -532,7 +532,7 @@ test("ruminate confirm follow-up in print mode stays preview-only", async () => 
   assert.match(output.join("\n"), /no brain changes were written/i);
 });
 
-test("brainmaxx_apply_changes enforces brain-only targets and syncs entrypoints", async () => {
+test("brainerd_apply_changes enforces brain-only targets and syncs entrypoints", async () => {
   const { api, commands, tools, customEntries } = createApi();
   const repoRoot = await tempRepo();
 
@@ -545,7 +545,7 @@ test("brainmaxx_apply_changes enforces brain-only targets and syncs entrypoints"
 
   const stage = {
     type: "custom",
-    customType: "brainmaxx-ruminate-stage",
+    customType: "brainerd-ruminate-stage",
     data: {
       stageId: "stage-apply",
       repoRoot,
@@ -557,7 +557,7 @@ test("brainmaxx_apply_changes enforces brain-only targets and syncs entrypoints"
     },
   };
 
-  const result = await tools.get("brainmaxx_apply_changes")?.execute(
+  const result = await tools.get("brainerd_apply_changes")?.execute(
     "tool",
     { stageId: "stage-apply" },
     undefined,
@@ -573,7 +573,7 @@ test("brainmaxx_apply_changes enforces brain-only targets and syncs entrypoints"
   assert.equal(customEntries.length, 1);
 });
 
-test("brainmaxx_apply_changes rejects paths outside brain notes and principles", async () => {
+test("brainerd_apply_changes rejects paths outside brain notes and principles", async () => {
   const { api, commands, tools } = createApi();
   const repoRoot = await tempRepo();
 
@@ -584,7 +584,7 @@ test("brainmaxx_apply_changes rejects paths outside brain notes and principles",
     ui: { notify() {} },
   });
 
-  const applyTool = tools.get("brainmaxx_apply_changes");
+  const applyTool = tools.get("brainerd_apply_changes");
   assert.ok(applyTool);
 
   await assert.rejects(

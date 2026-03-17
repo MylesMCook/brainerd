@@ -1,4 +1,4 @@
-# pi-brainmaxx Skill Reliability Notes
+# pi-brainerd Skill Reliability Notes
 
 ## Status
 
@@ -31,10 +31,10 @@ skills:
   - `read`
   - `find`
   - `grep`
-  - `brainmaxx_current_session`
-  - `brainmaxx_apply_changes`
-- brain writes are only allowed through `brainmaxx_apply_changes`
-- the skill must end with a visible section that starts with `Brainmaxx summary:`
+  - `brainerd_current_session`
+  - `brainerd_apply_changes`
+- brain writes are only allowed through `brainerd_apply_changes`
+- the skill must end with a visible section that starts with `Brainerd summary:`
 
 ### `/ruminate`
 
@@ -44,14 +44,14 @@ skills:
   - `read`
   - `find`
   - `grep`
-  - `brainmaxx_repo_sessions`
-  - `brainmaxx_stage_ruminate`
+  - `brainerd_repo_sessions`
+  - `brainerd_stage_ruminate`
 - apply runs get only:
   - `read`
   - `find`
   - `grep`
-  - `brainmaxx_get_staged_ruminate`
-  - `brainmaxx_apply_changes`
+  - `brainerd_get_staged_ruminate`
+  - `brainerd_apply_changes`
 - preview is always first
 - interactive Pi accepts a short plain-English confirmation like `yes` or
   `apply it`
@@ -60,15 +60,15 @@ skills:
 
 ## Guardrails
 
-- `write`, `edit`, and `bash` are blocked during active brainmaxx runs
-- `brainmaxx_apply_changes` only accepts markdown targets under:
+- `write`, `edit`, and `bash` are blocked during active brainerd runs
+- `brainerd_apply_changes` only accepts markdown targets under:
   - `brain/notes/`
   - `brain/principles/`
 - direct writes to generated entrypoints are rejected:
   - `brain/index.md`
   - `brain/principles.md`
-  - `brain/.brainmaxx-version`
-- entrypoint sync happens inside `brainmaxx_apply_changes`
+  - `brain/.brainerd-version`
+- entrypoint sync happens inside `brainerd_apply_changes`
 
 ## Why This Shape
 
